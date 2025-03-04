@@ -75,7 +75,7 @@ function loadCompanyProfile() {
                         }</div>
                     </div>
                     <div class="edit-address-btn-container">
-                        <button class="secondary-btn">Edit Address</button>
+                        <button id="edit-address-btn" class="secondary-btn">Edit Address</button>
                     </div>
                 </div>
                 
@@ -125,6 +125,14 @@ function loadCompanyProfile() {
   if (editCompanyProfileBtn) {
     editCompanyProfileBtn.addEventListener("click", () => {
       showEditProfileModal();
+    });
+  }
+
+  // Add event listener for Edit Address button
+  const editAddressBtn = document.getElementById("edit-address-btn");
+  if (editAddressBtn) {
+    editAddressBtn.addEventListener("click", () => {
+      showEditAddressModal();
     });
   }
 }
@@ -244,6 +252,114 @@ async function updateCompanyProfile() {
   } catch (error) {
     console.error("Error updating company profile:", error);
     showMessage(`Error updating profile: ${error.message}`, "error");
+  }
+}
+
+// Show edit address modal
+function showEditAddressModal() {
+  const modalContent = `
+        <div class="edit-address-form">
+            <div class="form-group">
+                <label for="edit-company-address">Company Address</label>
+                <textarea id="edit-company-address" rows="3" placeholder="Enter your company's full address">${
+                  currentCompany.address || ""
+                }</textarea>
+            </div>
+            <div class="form-group">
+                <label for="edit-company-city">City</label>
+                <input type="text" id="edit-company-city" value="${
+                  currentCompany.city || ""
+                }" placeholder="City">
+            </div>
+            <div class="form-group">
+                <label for="edit-company-state">State/Province</label>
+                <input type="text" id="edit-company-state" value="${
+                  currentCompany.state || ""
+                }" placeholder="State or Province">
+            </div>
+            <div class="form-group">
+                <label for="edit-company-zip">Postal/ZIP Code</label>
+                <input type="text" id="edit-company-zip" value="${
+                  currentCompany.zipCode || ""
+                }" placeholder="ZIP or Postal Code">
+            </div>
+            <div class="form-group">
+                <label for="edit-company-country">Country</label>
+                <input type="text" id="edit-company-country" value="${
+                  currentCompany.country || ""
+                }" placeholder="Country">
+            </div>
+            
+            <div class="form-footer">
+                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                <button type="button" class="primary-btn" onclick="updateCompanyAddress()">Save Address</button>
+            </div>
+        </div>
+    `;
+
+  showModal("Edit Company Address", modalContent);
+}
+
+// Update company address
+async function updateCompanyAddress() {
+  try {
+    const address = document
+      .getElementById("edit-company-address")
+      .value.trim();
+    const city = document.getElementById("edit-company-city").value.trim();
+    const state = document.getElementById("edit-company-state").value.trim();
+    const zipCode = document.getElementById("edit-company-zip").value.trim();
+    const country = document
+      .getElementById("edit-company-country")
+      .value.trim();
+
+    // Show loading message
+    showMessage("Updating address...", "info");
+
+    // Format full address for display
+    let fullAddress = address;
+    if (city && state) {
+      fullAddress += `\n${city}, ${state}`;
+      if (zipCode) {
+        fullAddress += ` ${zipCode}`;
+      }
+    }
+    if (country) {
+      fullAddress += `\n${country}`;
+    }
+
+    // Update Firestore
+    await companiesRef.doc(currentCompany.id).update({
+      address: fullAddress,
+      city: city,
+      state: state,
+      zipCode: zipCode,
+      country: country,
+      updatedAt: getTimestamp(),
+    });
+
+    // Update local company data
+    currentCompany.address = fullAddress;
+    currentCompany.city = city;
+    currentCompany.state = state;
+    currentCompany.zipCode = zipCode;
+    currentCompany.country = country;
+
+    // Update stored company data
+    setCurrentCompany(currentCompany);
+
+    // Hide modal and reload profile
+    hideModal();
+    loadCompanyProfile();
+
+    // Log activity
+    await logActivity("update", "company_address", currentCompany.id);
+
+    // Show success message
+    showMessage("Address updated successfully", "success");
+  } catch (error) {
+    console.error("Error updating company address:", error);
+    showMessage(`Error updating address: ${error.message}`, "error");
   }
 }
 
