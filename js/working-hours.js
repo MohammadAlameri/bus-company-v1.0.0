@@ -343,11 +343,28 @@ async function loadTimeOffData() {
     const timeOffList = document.getElementById("time-off-list");
     if (!timeOffList) return;
 
+    // Show loading state
+    timeOffList.innerHTML = `
+      <div class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading time off records...</p>
+      </div>
+    `;
+
+    console.log("Loading time off data for company ID:", currentCompany.id);
+
     const snapshot = await db
       .collection("timeOff")
       .where("companyId", "==", currentCompany.id)
       .orderBy("startDate", "desc")
       .get();
+
+    console.log(
+      "Time off query complete. Found records:",
+      !snapshot.empty,
+      "Count:",
+      snapshot.size
+    );
 
     if (snapshot.empty) {
       timeOffList.innerHTML = `
@@ -360,17 +377,30 @@ async function loadTimeOffData() {
     }
 
     let timeOffHTML = "";
+
+    // Add debug to check if we actually have records
+    const timeOffRecords = [];
+
     snapshot.forEach((doc) => {
       const timeOff = doc.data();
-      const startDate = timeOff.startDate.toDate
+      const timeOffId = doc.id;
+
+      // Add to debug array
+      timeOffRecords.push({
+        id: timeOffId,
+        ...timeOff,
+      });
+
+      const startDate = timeOff.startDate?.toDate
         ? timeOff.startDate.toDate()
         : new Date(timeOff.startDate);
-      const endDate = timeOff.endDate.toDate
+
+      const endDate = timeOff.endDate?.toDate
         ? timeOff.endDate.toDate()
         : new Date(timeOff.endDate);
 
       timeOffHTML += `
-                <div class="time-off-item" data-id="${doc.id}">
+                <div class="time-off-item" data-id="${timeOffId}">
                     <div class="time-off-date">
                         <span>${startDate.toLocaleDateString()}</span>
                         <span>to</span>
@@ -380,14 +410,10 @@ async function loadTimeOffData() {
                         ${timeOff.reason || "No reason provided"}
                     </div>
                     <div class="time-off-actions">
-                        <button class="icon-btn edit-time-off-btn" data-id="${
-                          doc.id
-                        }">
+                        <button class="icon-btn edit-time-off-btn" data-id="${timeOffId}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="icon-btn delete-time-off-btn" data-id="${
-                          doc.id
-                        }">
+                        <button class="icon-btn delete-time-off-btn" data-id="${timeOffId}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -395,18 +421,51 @@ async function loadTimeOffData() {
             `;
     });
 
-    timeOffList.innerHTML = timeOffHTML;
+    console.log(
+      "Time off records loaded:",
+      timeOffRecords.length,
+      timeOffRecords
+    );
 
-    // Add event listeners to edit and delete buttons
-    document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
-      btn.addEventListener("click", () => showEditTimeOffModal(btn.dataset.id));
-    });
+    if (timeOffHTML) {
+      timeOffList.innerHTML = timeOffHTML;
 
-    document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
-      btn.addEventListener("click", () => confirmDeleteTimeOff(btn.dataset.id));
-    });
+      // Add event listeners to edit and delete buttons
+      document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const timeOffId = btn.getAttribute("data-id");
+          showEditTimeOffModal(timeOffId);
+        });
+      });
+
+      document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const timeOffId = btn.getAttribute("data-id");
+          confirmDeleteTimeOff(timeOffId);
+        });
+      });
+    } else {
+      // This is a fallback in case we have records but timeOffHTML is empty
+      timeOffList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No time off records could be displayed</p>
+                </div>
+            `;
+      console.error("No time off HTML generated despite having records");
+    }
   } catch (error) {
     console.error("Error loading time off data:", error);
+
+    const timeOffList = document.getElementById("time-off-list");
+    if (timeOffList) {
+      timeOffList.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading time off records: ${error.message}</p>
+                </div>
+            `;
+    }
   }
 }
 

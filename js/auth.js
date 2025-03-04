@@ -75,6 +75,16 @@ if (loginBtn) {
       const companyProfile = await fetchCompanyProfile(user.uid);
       setCurrentCompany(companyProfile);
 
+      // Check email verification status
+      if (!user.emailVerified) {
+        console.log("Email not verified:", user.email);
+        showMessage(
+          "Your email is not verified. Please check your inbox or request a new verification email.",
+          "warning",
+          8000
+        );
+      }
+
       // Show dashboard
       showDashboard();
 
@@ -123,6 +133,16 @@ if (googleLoginBtn) {
       // Fetch company profile
       const companyProfile = await fetchCompanyProfile(user.uid);
       setCurrentCompany(companyProfile);
+
+      // Check email verification status
+      if (!user.emailVerified) {
+        console.log("Email not verified:", user.email);
+        showMessage(
+          "Your email is not verified. Please check your inbox or request a new verification email.",
+          "warning",
+          8000
+        );
+      }
 
       // Show dashboard
       showDashboard();
@@ -366,6 +386,16 @@ auth.onAuthStateChanged(async (user) => {
         const companyProfile = await fetchCompanyProfile(user.uid);
         setCurrentCompany(companyProfile);
 
+        // Check email verification status
+        if (!user.emailVerified) {
+          console.log("Email not verified:", user.email);
+          showMessage(
+            "Your email is not verified. Please check your inbox or request a new verification email.",
+            "warning",
+            8000
+          );
+        }
+
         // Show dashboard
         showDashboard();
 
@@ -457,7 +487,7 @@ function showDashboard() {
 }
 
 // Show message
-function showMessage(message, type = "info") {
+function showMessage(message, type = "info", duration = 3000) {
   // Create message element
   const messageEl = document.createElement("div");
   messageEl.className = `message ${type}`;
@@ -466,13 +496,13 @@ function showMessage(message, type = "info") {
   // Add to body
   document.body.appendChild(messageEl);
 
-  // Remove after 3 seconds
+  // Remove after duration
   setTimeout(() => {
     messageEl.classList.add("hiding");
     setTimeout(() => {
       document.body.removeChild(messageEl);
     }, 500);
-  }, 3000);
+  }, duration);
 }
 
 // Add CSS for messages
@@ -505,3 +535,133 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Current company data
+let currentCompany = null;
+
+// Set current company
+function setCurrentCompany(company) {
+  if (!company) return;
+
+  currentCompany = company;
+  localStorage.setItem("currentCompany", JSON.stringify(company));
+
+  // Check email verification status
+  checkEmailVerification();
+}
+
+// Check if email is verified and show appropriate UI
+function checkEmailVerification() {
+  // Only check if auth is available
+  if (!auth || !auth.currentUser) return;
+
+  const user = auth.currentUser;
+  console.log("Checking email verification status for:", user.email);
+  console.log("Email verified:", user.emailVerified);
+
+  // Update UI elements if they exist
+  updateVerificationUI(user.emailVerified);
+}
+
+// Update verification UI elements
+function updateVerificationUI(isVerified) {
+  const emailVerificationBanner = document.getElementById(
+    "email-verification-banner"
+  );
+
+  // If there's no banner yet, but we need to show verification message, create one
+  if (!emailVerificationBanner && !isVerified) {
+    createVerificationBanner();
+  } else if (emailVerificationBanner) {
+    // If banner exists, update it based on verification status
+    if (isVerified) {
+      // If verified, remove the banner
+      emailVerificationBanner.remove();
+    } else {
+      // Banner exists and user not verified, ensure it's visible
+      emailVerificationBanner.classList.remove("hidden");
+    }
+  }
+
+  // Also update any other UI elements that show verification status
+  const companyVerifiedBadge = document.getElementById(
+    "company-verified-badge"
+  );
+  if (companyVerifiedBadge) {
+    companyVerifiedBadge.textContent = isVerified ? "Verified" : "Unverified";
+    companyVerifiedBadge.className = isVerified
+      ? "status-badge status-success"
+      : "status-badge status-warning";
+  }
+}
+
+// Create verification banner
+function createVerificationBanner() {
+  const dashboardSection = document.getElementById("dashboard-section");
+  if (!dashboardSection) return;
+
+  // Create the banner
+  const banner = document.createElement("div");
+  banner.id = "email-verification-banner";
+  banner.className = "verification-banner";
+  banner.innerHTML = `
+    <i class="fas fa-exclamation-triangle"></i>
+    <div class="verification-message">
+      <p>Your email address is not verified. Please check your inbox for a verification email or request a new one.</p>
+    </div>
+    <button id="send-verification-email-btn" class="primary-btn">Send Verification Email</button>
+    <button id="dismiss-verification-banner-btn" class="text-btn">Dismiss</button>
+  `;
+
+  // Insert at the top of dashboard
+  dashboardSection.insertBefore(banner, dashboardSection.firstChild);
+
+  // Add event listeners
+  document
+    .getElementById("send-verification-email-btn")
+    .addEventListener("click", sendVerificationEmail);
+  document
+    .getElementById("dismiss-verification-banner-btn")
+    .addEventListener("click", dismissVerificationBanner);
+}
+
+// Send verification email
+async function sendVerificationEmail() {
+  if (!auth || !auth.currentUser) return;
+
+  try {
+    showMessage("Sending verification email...", "info");
+    await auth.currentUser.sendEmailVerification();
+    showMessage("Verification email sent! Please check your inbox.", "success");
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    showMessage(`Error sending verification email: ${error.message}`, "error");
+  }
+}
+
+// Dismiss verification banner
+function dismissVerificationBanner() {
+  const banner = document.getElementById("email-verification-banner");
+  if (banner) {
+    banner.classList.add("hidden");
+  }
+}
+
+// Clear current company
+function clearCurrentCompany() {
+  currentCompany = null;
+  localStorage.removeItem("currentCompany");
+}
+
+// Get current company
+function getCurrentCompany() {
+  if (currentCompany) return currentCompany;
+
+  const storedCompany = localStorage.getItem("currentCompany");
+  if (storedCompany) {
+    currentCompany = JSON.parse(storedCompany);
+    return currentCompany;
+  }
+
+  return null;
+}

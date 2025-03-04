@@ -716,4 +716,78 @@ button {
     .auth-container {
         width: 90%;
     }
-} 
+}
+
+/* Verification Banner and Badges */
+.verification-banner {
+    background-color: #fcf8e3;
+    border: 1px solid #faebcc;
+    color: #8a6d3b;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.verification-banner i {
+    font-size: 24px;
+    color: #f39c12;
+}
+
+.verification-message {
+    flex: 1;
+}
+
+.verification-banner .primary-btn {
+    white-space: nowrap;
+}
+
+.verification-banner .text-btn {
+    color: #7f8c8d;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-success {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+}
+
+.status-warning {
+    background-color: rgba(243, 156, 18, 0.2);
+    color: #e67e22;
+}
+
+.status-danger {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #c0392b;
+}
+
+.text-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    transition: color 0.3s ease;
+}
+
+.text-btn:hover {
+    color: var(--primary-dark);
+}
+
+.verification-btn {
+    margin-left: 10px;
+}
+
+/* End Verification Styles */ 
