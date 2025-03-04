@@ -90,6 +90,17 @@ function loadCurrentCompany() {
   if (savedCompany) {
     try {
       currentCompany = JSON.parse(savedCompany);
+
+      // Validate the company object
+      if (!currentCompany || !currentCompany.id) {
+        console.error("Invalid company data in localStorage");
+        localStorage.removeItem("currentCompany");
+        currentCompany = null;
+        return;
+      }
+
+      console.log("Loaded company from localStorage:", currentCompany.id);
+
       if (document.getElementById("company-name")) {
         document.getElementById("company-name").textContent =
           currentCompany.name;
@@ -97,6 +108,7 @@ function loadCurrentCompany() {
     } catch (error) {
       console.error("Error parsing saved company:", error);
       localStorage.removeItem("currentCompany");
+      currentCompany = null;
     }
   }
 }
