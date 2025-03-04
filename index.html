@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Company Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section (Default view) -->
+        <div id="login-section" class="auth-section">
+            <div class="auth-container">
+                <div class="logo">
+                    <i class="fas fa-bus"></i>
+                    <h1>Bus Company Dashboard</h1>
+                </div>
+                <div class="auth-form">
+                    <h2>Login to Dashboard</h2>
+                    <div class="input-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" placeholder="Enter your email">
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password">
+                    </div>
+                    <button id="login-btn" class="primary-btn">Login</button>
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+                    <button id="google-login-btn" class="google-btn">
+                        <i class="fab fa-google"></i> Login with Google
+                    </button>
+                    <p class="auth-switch">Don't have an account? <a href="#" id="show-register">Register</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Section (Hidden by default) -->
+        <div id="register-section" class="auth-section hidden">
+            <div class="auth-container">
+                <div class="logo">
+                    <i class="fas fa-bus"></i>
+                    <h1>Bus Company Dashboard</h1>
+                </div>
+                <div class="auth-form">
+                    <h2>Register Company Account</h2>
+                    <div class="input-group">
+                        <label for="register-company">Company Name</label>
+                        <input type="text" id="register-company" placeholder="Enter company name">
+                    </div>
+                    <div class="input-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="Enter company email">
+                    </div>
+                    <div class="input-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" placeholder="Enter password">
+                    </div>
+                    <div class="input-group">
+                        <label for="register-confirm-password">Confirm Password</label>
+                        <input type="password" id="register-confirm-password" placeholder="Confirm password">
+                    </div>
+                    <button id="register-btn" class="primary-btn">Register</button>
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+                    <button id="register-google-btn" class="google-btn">
+                        <i class="fab fa-google"></i> Register with Google
+                    </button>
+                    <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard (Hidden by default) -->
+        <div id="dashboard-section" class="hidden">
+            <nav class="sidebar">
+                <div class="sidebar-header">
+                    <i class="fas fa-bus"></i>
+                    <h2>Bus Dashboard</h2>
+                </div>
+                <ul class="sidebar-menu">
+                    <li class="menu-item active" data-section="overview">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Overview</span>
+                    </li>
+                    <li class="menu-item" data-section="drivers">
+                        <i class="fas fa-id-card"></i>
+                        <span>Drivers</span>
+                    </li>
+                    <li class="menu-item" data-section="trips">
+                        <i class="fas fa-route"></i>
+                        <span>Trips</span>
+                    </li>
+                    <li class="menu-item" data-section="buses">
+                        <i class="fas fa-bus-alt"></i>
+                        <span>Buses</span>
+                    </li>
+                    <li class="menu-item" data-section="appointments">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Appointments</span>
+                    </li>
+                    <li class="menu-item" data-section="payments">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Payments</span>
+                    </li>
+                    <li class="menu-item" data-section="reviews">
+                        <i class="fas fa-star"></i>
+                        <span>Reviews</span>
+                    </li>
+                    <li class="menu-item" data-section="working-hours">
+                        <i class="fas fa-clock"></i>
+                        <span>Working Hours</span>
+                    </li>
+                    <li class="menu-item" data-section="company-profile">
+                        <i class="fas fa-building"></i>
+                        <span>Company Profile</span>
+                    </li>
+                    <li class="menu-item" data-section="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifications</span>
+                    </li>
+                </ul>
+                <div class="sidebar-footer">
+                    <button id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </nav>
+
+            <main class="content">
+                <header class="content-header">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                    <div class="header-actions">
+                        <div class="notification-bell">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">0</span>
+                        </div>
+                        <div class="user-profile">
+                            <img src="https://via.placeholder.com/40" alt="Profile">
+                            <span id="company-name">Company Name</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Overview Section -->
+                <section id="overview-section" class="dashboard-section active">
+                    <h2>Dashboard Overview</h2>
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-id-card"></i>
+                            </div>
+                            <div class="stat-card-info">
+                                <h3>Drivers</h3>
+                                <p class="stat-count" id="drivers-count">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-route"></i>
+                            </div>
+                            <div class="stat-card-info">
+                                <h3>Active Trips</h3>
+                                <p class="stat-count" id="trips-count">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-bus-alt"></i>
+                            </div>
+                            <div class="stat-card-info">
+                                <h3>Buses</h3>
+                                <p class="stat-count" id="buses-count">0</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-card-info">
+                                <h3>Passengers</h3>
+                                <p class="stat-count" id="passengers-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overview-charts">
+                        <div class="chart-container">
+                            <h3>Bookings Overview</h3>
+                            <canvas id="bookings-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Revenue Overview</h3>
+                            <canvas id="revenue-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="recent-activities">
+                        <h3>Recent Activities</h3>
+                        <div class="activity-list" id="activity-list">
+                            <!-- Activities will be populated via JavaScript -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Other sections will be dynamically loaded -->
+                <section id="drivers-section" class="dashboard-section hidden">
+                    <!-- Drivers section content -->
+                </section>
+                
+                <section id="trips-section" class="dashboard-section hidden">
+                    <!-- Trips section content -->
+                </section>
+                
+                <section id="buses-section" class="dashboard-section hidden">
+                    <!-- Buses section content -->
+                </section>
+                
+                <section id="appointments-section" class="dashboard-section hidden">
+                    <!-- Appointments section content -->
+                </section>
+                
+                <section id="payments-section" class="dashboard-section hidden">
+                    <!-- Payments section content -->
+                </section>
+                
+                <section id="reviews-section" class="dashboard-section hidden">
+                    <!-- Reviews section content -->
+                </section>
+                
+                <section id="working-hours-section" class="dashboard-section hidden">
+                    <!-- Working Hours section content -->
+                </section>
+                
+                <section id="company-profile-section" class="dashboard-section hidden">
+                    <!-- Company Profile section content -->
+                </section>
+                
+                <section id="notifications-section" class="dashboard-section hidden">
+                    <!-- Notifications section content -->
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for forms -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div id="modal-body">
+                <!-- Modal content will be dynamically loaded -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Main JavaScript Files -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/drivers.js"></script>
+    <script src="js/trips.js"></script>
+    <script src="js/buses.js"></script>
+    <script src="js/appointments.js"></script>
+    <script src="js/payments.js"></script>
+    <script src="js/reviews.js"></script>
+    <script src="js/working-hours.js"></script>
+    <script src="js/company-profile.js"></script>
+    <script src="js/notifications.js"></script>
+</body>
+</html> 
