@@ -75,7 +75,7 @@ function loadCompanyProfile() {
                         }</div>
                     </div>
                     <div class="edit-address-btn-container">
-                        <button id="edit-address-btn" class="secondary-btn">Edit Address</button>
+                        <button onclick="showEditAddressModal()" class="secondary-btn">Edit Address</button>
                     </div>
                 </div>
                 
@@ -125,14 +125,6 @@ function loadCompanyProfile() {
   if (editCompanyProfileBtn) {
     editCompanyProfileBtn.addEventListener("click", () => {
       showEditProfileModal();
-    });
-  }
-
-  // Add event listener for Edit Address button
-  const editAddressBtn = document.getElementById("edit-address-btn");
-  if (editAddressBtn) {
-    editAddressBtn.addEventListener("click", () => {
-      showEditAddressModal();
     });
   }
 }
@@ -257,37 +249,67 @@ async function updateCompanyProfile() {
 
 // Show edit address modal
 function showEditAddressModal() {
+  console.log("showEditAddressModal function called");
+
+  // Parse existing address if available
+  let streetAddress = "";
+  let city = "";
+  let state = "";
+  let zipCode = "";
+  let country = "";
+
+  if (currentCompany.address) {
+    // Try to parse the existing address
+    const addressLines = currentCompany.address.split("\n");
+
+    if (addressLines.length >= 1) {
+      streetAddress = addressLines[0];
+    }
+
+    if (addressLines.length >= 2) {
+      // Try to parse the city, state, zip line
+      const cityStateLine = addressLines[1];
+      const cityStateMatch = cityStateLine.match(/([^,]+),\s*([^,]+)\s*(\d*)/);
+
+      if (cityStateMatch) {
+        city = cityStateMatch[1] || "";
+        state = cityStateMatch[2] || "";
+        zipCode = cityStateMatch[3] || "";
+      }
+    }
+
+    if (addressLines.length >= 3) {
+      country = addressLines[2];
+    }
+  }
+
+  // Use stored individual fields if available
+  city = currentCompany.city || city;
+  state = currentCompany.state || state;
+  zipCode = currentCompany.zipCode || zipCode;
+  country = currentCompany.country || country;
+
   const modalContent = `
         <div class="edit-address-form">
             <div class="form-group">
-                <label for="edit-company-address">Company Address</label>
-                <textarea id="edit-company-address" rows="3" placeholder="Enter your company's full address">${
-                  currentCompany.address || ""
-                }</textarea>
+                <label for="edit-company-address">Street Address</label>
+                <textarea id="edit-company-address" rows="3" placeholder="Enter your street address">${streetAddress}</textarea>
             </div>
             <div class="form-group">
                 <label for="edit-company-city">City</label>
-                <input type="text" id="edit-company-city" value="${
-                  currentCompany.city || ""
-                }" placeholder="City">
+                <input type="text" id="edit-company-city" value="${city}" placeholder="City">
             </div>
             <div class="form-group">
                 <label for="edit-company-state">State/Province</label>
-                <input type="text" id="edit-company-state" value="${
-                  currentCompany.state || ""
-                }" placeholder="State or Province">
+                <input type="text" id="edit-company-state" value="${state}" placeholder="State or Province">
             </div>
             <div class="form-group">
                 <label for="edit-company-zip">Postal/ZIP Code</label>
-                <input type="text" id="edit-company-zip" value="${
-                  currentCompany.zipCode || ""
-                }" placeholder="ZIP or Postal Code">
+                <input type="text" id="edit-company-zip" value="${zipCode}" placeholder="ZIP or Postal Code">
             </div>
             <div class="form-group">
                 <label for="edit-company-country">Country</label>
-                <input type="text" id="edit-company-country" value="${
-                  currentCompany.country || ""
-                }" placeholder="Country">
+                <input type="text" id="edit-company-country" value="${country}" placeholder="Country">
             </div>
             
             <div class="form-footer">
@@ -362,6 +384,10 @@ async function updateCompanyAddress() {
     showMessage(`Error updating address: ${error.message}`, "error");
   }
 }
+
+// Make functions globally available
+window.showEditAddressModal = showEditAddressModal;
+window.updateCompanyAddress = updateCompanyAddress;
 
 // Add styles for company profile section
 const companyProfileStyles = document.createElement("style");
