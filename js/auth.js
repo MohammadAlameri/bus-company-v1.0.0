@@ -43,8 +43,43 @@ if (loginBtn) {
       loginBtn.disabled = true;
       loginBtn.textContent = "Logging in...";
 
-      await auth.signInWithEmailAndPassword(email, password);
-      // Authentication state listener will handle redirection
+      // Sign in the user
+      const userCredential = await auth.signInWithEmailAndPassword(
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Check if company profile exists
+      const profileExists = await checkCompanyProfileExists(user.uid);
+
+      if (!profileExists) {
+        // If profile doesn't exist, create it
+        showMessage("Creating company profile...", "info");
+        try {
+          await createCompanyProfile(
+            user.uid,
+            "Company " + user.email.split("@")[0],
+            user.email,
+            "email"
+          );
+          showMessage("Company profile created", "success");
+        } catch (profileError) {
+          console.error("Error creating company profile:", profileError);
+          showMessage("Error creating company profile", "error");
+          // Still continue with login
+        }
+      }
+
+      // Fetch company profile
+      const companyProfile = await fetchCompanyProfile(user.uid);
+      setCurrentCompany(companyProfile);
+
+      // Show dashboard
+      showDashboard();
+
+      // Initialize dashboard data
+      initializeDashboard();
     } catch (error) {
       console.error("Login error:", error);
       showMessage(`Login failed: ${error.message}`, "error");
@@ -61,8 +96,39 @@ if (googleLoginBtn) {
       googleLoginBtn.disabled = true;
 
       const provider = new firebase.auth.GoogleAuthProvider();
-      await auth.signInWithPopup(provider);
-      // Authentication state listener will handle redirection
+      const userCredential = await auth.signInWithPopup(provider);
+      const user = userCredential.user;
+
+      // Check if company profile exists
+      const profileExists = await checkCompanyProfileExists(user.uid);
+
+      if (!profileExists) {
+        // If profile doesn't exist, create it
+        showMessage("Creating company profile...", "info");
+        try {
+          await createCompanyProfile(
+            user.uid,
+            "Company " + user.email.split("@")[0],
+            user.email,
+            "google"
+          );
+          showMessage("Company profile created", "success");
+        } catch (profileError) {
+          console.error("Error creating company profile:", profileError);
+          showMessage("Error creating company profile", "error");
+          // Still continue with login
+        }
+      }
+
+      // Fetch company profile
+      const companyProfile = await fetchCompanyProfile(user.uid);
+      setCurrentCompany(companyProfile);
+
+      // Show dashboard
+      showDashboard();
+
+      // Initialize dashboard data
+      initializeDashboard();
     } catch (error) {
       console.error("Google login error:", error);
       showMessage(`Google login failed: ${error.message}`, "error");
@@ -92,46 +158,36 @@ if (registerBtn) {
     }
 
     try {
-      showLoader();
+      registerBtn.disabled = true;
+      registerBtn.textContent = "Registering...";
 
-      // Create user in Firebase Authentication
+      // Create user with email and password
       const userCredential = await auth.createUserWithEmailAndPassword(
         email,
         password
       );
       const user = userCredential.user;
 
-      // Create company document in Firestore
-      await db.collection("companies").doc(user.uid).set({
-        companyName: companyName,
-        email: email,
-        phoneNumber: "",
-        address: "",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        isActive: true,
-        profileComplete: false,
-      });
+      // Create company profile
+      showMessage("Creating company profile...", "info");
+      await createCompanyProfile(user.uid, companyName, email, "email");
 
-      // Log activity
-      await logActivity("register", "company", user.uid);
+      // Fetch company profile
+      const companyProfile = await fetchCompanyProfile(user.uid);
+      setCurrentCompany(companyProfile);
 
-      // Set the display name for the user
-      await user.updateProfile({
-        displayName: companyName,
-      });
+      // Show dashboard
+      showDashboard();
 
-      hideLoader();
+      // Initialize dashboard data
+      initializeDashboard();
+
       showMessage("Registration successful!", "success");
-
-      // Redirect after successful registration
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1500);
     } catch (error) {
-      hideLoader();
       console.error("Registration error:", error);
       showMessage(`Registration failed: ${error.message}`, "error");
+      registerBtn.disabled = false;
+      registerBtn.textContent = "Register";
     }
   });
 }
@@ -154,9 +210,20 @@ if (registerGoogleBtn) {
       const user = userCredential.user;
 
       // Create company profile
+      showMessage("Creating company profile...", "info");
       await createCompanyProfile(user.uid, companyName, user.email, "google");
 
-      // Authentication state listener will handle redirection
+      // Fetch company profile
+      const companyProfile = await fetchCompanyProfile(user.uid);
+      setCurrentCompany(companyProfile);
+
+      // Show dashboard
+      showDashboard();
+
+      // Initialize dashboard data
+      initializeDashboard();
+
+      showMessage("Registration successful!", "success");
     } catch (error) {
       console.error("Google registration error:", error);
       showMessage(`Google registration failed: ${error.message}`, "error");
@@ -170,7 +237,12 @@ if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
     try {
       await auth.signOut();
-      // Authentication state listener will handle redirection
+      clearCurrentCompany();
+
+      // Show login view
+      if (dashboardSection) dashboardSection.classList.add("hidden");
+      if (loginSection) loginSection.classList.remove("hidden");
+      if (registerSection) registerSection.classList.add("hidden");
     } catch (error) {
       console.error("Logout error:", error);
       showMessage(`Logout failed: ${error.message}`, "error");
@@ -181,6 +253,18 @@ if (logoutBtn) {
 // Create company profile
 async function createCompanyProfile(userId, name, email, authProvider) {
   try {
+    console.log("Creating company profile for:", userId, name, email);
+
+    // Check if company profile already exists
+    const existingDoc = await companiesRef.doc(userId).get();
+    if (existingDoc.exists) {
+      console.log("Company profile already exists");
+      return {
+        id: userId,
+        ...existingDoc.data(),
+      };
+    }
+
     // Create a default address first
     const addressRef = await addressesRef.add({
       latLon: null,
@@ -191,6 +275,8 @@ async function createCompanyProfile(userId, name, email, authProvider) {
       country: "",
       nextTo: "",
     });
+
+    console.log("Created address with ID:", addressRef.id);
 
     // Create company profile
     const companyData = {
@@ -209,7 +295,9 @@ async function createCompanyProfile(userId, name, email, authProvider) {
       authProvider,
     };
 
+    console.log("Setting company document with ID:", userId);
     await companiesRef.doc(userId).set(companyData);
+    console.log("Company document created successfully");
 
     // Log activity
     await logActivity("create", "company", userId);
@@ -242,7 +330,20 @@ async function fetchCompanyProfile(userId) {
 
       return companyData;
     } else {
-      throw new Error("Company profile not found");
+      // If profile doesn't exist, create it
+      console.log("No company profile found. Creating one...");
+
+      // Get user info
+      const user = auth.currentUser;
+      if (!user) throw new Error("User not authenticated");
+
+      // Create a default company profile
+      return await createCompanyProfile(
+        userId,
+        "Company " + user.email.split("@")[0],
+        user.email,
+        user.providerData[0].providerId === "google.com" ? "google" : "email"
+      );
     }
   } catch (error) {
     console.error("Error fetching company profile:", error);
@@ -254,8 +355,11 @@ async function fetchCompanyProfile(userId) {
 auth.onAuthStateChanged(async (user) => {
   if (user) {
     try {
+      console.log("User signed in:", user.uid);
+
       // Check if company profile exists
       const profileExists = await checkCompanyProfileExists(user.uid);
+      console.log("Profile exists:", profileExists);
 
       if (profileExists) {
         // Fetch and set company profile
@@ -268,17 +372,23 @@ auth.onAuthStateChanged(async (user) => {
         // Initialize dashboard data
         initializeDashboard();
       } else {
-        // If no profile exists, show register view
-        if (loginSection) loginSection.classList.add("hidden");
-        if (registerSection) registerSection.classList.remove("hidden");
+        // Create company profile
+        console.log("No profile exists, creating one...");
+        const userName =
+          user.displayName || "Company " + user.email.split("@")[0];
+        const companyProfile = await createCompanyProfile(
+          user.uid,
+          userName,
+          user.email,
+          user.providerData[0].providerId === "google.com" ? "google" : "email"
+        );
 
-        // Pre-fill email if available
-        if (user.email && document.getElementById("register-email")) {
-          document.getElementById("register-email").value = user.email;
-        }
+        // Set company profile and show dashboard
+        setCurrentCompany(companyProfile);
+        showDashboard();
 
-        // Sign out temporarily until registration is complete
-        await auth.signOut();
+        // Initialize dashboard data
+        initializeDashboard();
       }
     } catch (error) {
       console.error("Error in auth state change:", error);
@@ -286,6 +396,7 @@ auth.onAuthStateChanged(async (user) => {
     }
   } else {
     // User is signed out
+    console.log("User signed out");
     clearCurrentCompany();
 
     // Show login view
@@ -328,6 +439,7 @@ auth.onAuthStateChanged(async (user) => {
 // Check if company profile exists
 async function checkCompanyProfileExists(userId) {
   try {
+    console.log("Checking if company profile exists for:", userId);
     const doc = await companiesRef.doc(userId).get();
     return doc.exists;
   } catch (error) {
@@ -338,6 +450,7 @@ async function checkCompanyProfileExists(userId) {
 
 // Show dashboard
 function showDashboard() {
+  console.log("Showing dashboard");
   if (loginSection) loginSection.classList.add("hidden");
   if (registerSection) registerSection.classList.add("hidden");
   if (dashboardSection) dashboardSection.classList.remove("hidden");
@@ -392,123 +505,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-// Sign in with Google function
-async function signInWithGoogle() {
-  try {
-    showLoader();
-    const provider = new firebase.auth.GoogleAuthProvider();
-
-    const userCredential = await firebase.auth().signInWithPopup(provider);
-    const user = userCredential.user;
-
-    // Check if company document exists, if not create it
-    const companyDoc = await db.collection("companies").doc(user.uid).get();
-
-    if (!companyDoc.exists) {
-      // Create company document in Firestore
-      await db
-        .collection("companies")
-        .doc(user.uid)
-        .set({
-          companyName: user.displayName || "New Company",
-          email: user.email,
-          phoneNumber: user.phoneNumber || "",
-          address: "",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          isActive: true,
-          profileComplete: false,
-        });
-
-      // Log activity
-      await logActivity("register", "company", user.uid);
-    }
-
-    hideLoader();
-    showMessage("Logged in successfully!", "success");
-
-    // Redirect after successful login
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 1500);
-  } catch (error) {
-    hideLoader();
-    console.error("Google login failed:", error);
-
-    if (error.code === "auth/unauthorized-domain") {
-      showMessage(
-        `Authentication Error: You need to add this domain (${window.location.hostname}) to the authorized domains in Firebase console.`,
-        "error"
-      );
-      showGoogleAuthInstructions();
-    } else {
-      showMessage(`Google login failed: ${error.message}`, "error");
-    }
-  }
-}
-
-// Function to show Google Auth setup instructions
-function showGoogleAuthInstructions() {
-  const modalContent = `
-        <div class="auth-instructions">
-            <h3>Firebase Authentication Setup Required</h3>
-            <p>To enable Google sign-in, you need to add your domain to Firebase's authorized domains list:</p>
-            
-            <ol>
-                <li>Go to the <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
-                <li>Select your project</li>
-                <li>Go to <strong>Authentication</strong> → <strong>Sign-in method</strong> tab</li>
-                <li>Scroll down to <strong>Authorized domains</strong></li>
-                <li>Click <strong>Add domain</strong> and add: <code>${window.location.hostname}</code></li>
-                <li>Click <strong>Save</strong></li>
-            </ol>
-            
-            <p>After completing these steps, refresh this page and try logging in again.</p>
-            
-            <div class="form-footer">
-                <button type="button" class="primary-btn" onclick="hideModal()">Got it</button>
-            </div>
-        </div>
-    `;
-
-  showModal("Authentication Setup Required", modalContent);
-}
-
-// Add styles for auth instructions
-const authInstructionsStyles = document.createElement("style");
-authInstructionsStyles.textContent = `
-    .auth-instructions {
-        padding: 15px;
-        max-width: 600px;
-    }
-    
-    .auth-instructions h3 {
-        margin-bottom: 15px;
-        color: var(--primary-color);
-    }
-    
-    .auth-instructions p {
-        margin-bottom: 15px;
-        line-height: 1.5;
-    }
-    
-    .auth-instructions ol {
-        margin-bottom: 20px;
-        padding-left: 20px;
-    }
-    
-    .auth-instructions li {
-        margin-bottom: 10px;
-        line-height: 1.5;
-    }
-    
-    .auth-instructions code {
-        background-color: #f5f5f5;
-        padding: 3px 6px;
-        border-radius: 4px;
-        font-family: monospace;
-        color: #e74c3c;
-    }
-`;
-document.head.appendChild(authInstructionsStyles);
