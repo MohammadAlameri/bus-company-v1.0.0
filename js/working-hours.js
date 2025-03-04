@@ -341,7 +341,10 @@ async function saveWorkingHours() {
 async function loadTimeOffData() {
   try {
     const timeOffList = document.getElementById("time-off-list");
-    if (!timeOffList) return;
+    if (!timeOffList) {
+      console.error("Time off list element not found");
+      return;
+    }
 
     console.log("Loading time off data for company ID:", currentCompany.id);
 
@@ -353,13 +356,47 @@ async function loadTimeOffData() {
     `;
 
     // Make sure we're using the correct collection reference
-    // There might be a typo or case sensitivity issue with the collection name
+    console.log("Connecting to timeOff collection in Firestore");
     const timeOffRef = db.collection("timeOff");
 
     // Debug: Check if the collection exists and has documents
     const allTimeOff = await timeOffRef.limit(5).get();
     console.log("Found total time off records in db:", allTimeOff.size);
 
+    if (allTimeOff.empty) {
+      console.warn("No time off records found in the entire collection");
+    } else {
+      // Log the first few records to help debug
+      allTimeOff.forEach((doc) => {
+        console.log("Sample record:", doc.id, doc.data());
+      });
+    }
+
+    // Check if currentCompany is properly initialized
+    if (!currentCompany || !currentCompany.id) {
+      console.error(
+        "Current company data is missing or incomplete:",
+        currentCompany
+      );
+      timeOffList.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>Error: Company data not available</p>
+          <button class="primary-btn retry-btn">Retry</button>
+        </div>
+      `;
+
+      // Add retry button functionality
+      timeOffList
+        .querySelector(".retry-btn")
+        ?.addEventListener("click", loadTimeOffData);
+      return;
+    }
+
+    console.log(
+      "Querying timeOff collection for company ID:",
+      currentCompany.id
+    );
     const snapshot = await timeOffRef
       .where("companyId", "==", currentCompany.id)
       .orderBy("startDate", "desc")
@@ -369,19 +406,19 @@ async function loadTimeOffData() {
 
     if (snapshot.empty) {
       timeOffList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-calendar-times"></i>
-                    <p>No time off records found</p>
-                    <small>CompanyID: ${currentCompany.id}</small>
-                </div>
-            `;
+        <div class="empty-state">
+          <i class="fas fa-calendar-times"></i>
+          <p>No time off records found</p>
+          <small>CompanyID: ${currentCompany.id}</small>
+        </div>
+      `;
       return;
     }
 
     let timeOffHTML = "";
     snapshot.forEach((doc) => {
       const timeOff = doc.data();
-      console.log("Time off record:", doc.id, timeOff);
+      console.log("Processing time off record:", doc.id, timeOff);
 
       // Check if dates are valid
       let startDate, endDate;
@@ -397,56 +434,80 @@ async function loadTimeOffData() {
             : new Date(timeOff.endDate)
           : new Date();
       } catch (e) {
-        console.error("Error parsing dates for timeOff:", e);
+        console.error("Error parsing dates for timeOff:", e, timeOff);
         startDate = new Date();
         endDate = new Date();
       }
 
       timeOffHTML += `
-                <div class="time-off-item" data-id="${doc.id}">
-                    <div class="time-off-date">
-                        <span>${startDate.toLocaleDateString()}</span>
-                        <span>to</span>
-                        <span>${endDate.toLocaleDateString()}</span>
-                    </div>
-                    <div class="time-off-reason">
-                        ${timeOff.reason || "No reason provided"}
-                    </div>
-                    <div class="time-off-actions">
-                        <button class="icon-btn edit-time-off-btn" data-id="${
-                          doc.id
-                        }">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="icon-btn delete-time-off-btn" data-id="${
-                          doc.id
-                        }">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+        <div class="time-off-item" data-id="${doc.id}">
+          <div class="time-off-date">
+            <span>${startDate.toLocaleDateString()}</span>
+            <span>to</span>
+            <span>${endDate.toLocaleDateString()}</span>
+          </div>
+          <div class="time-off-reason">
+            ${timeOff.reason || "No reason provided"}
+          </div>
+          <div class="time-off-actions">
+            <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="icon-btn delete-time-off-btn" data-id="${doc.id}">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
     });
 
-    timeOffList.innerHTML =
-      timeOffHTML ||
-      `
-      <div class="empty-state">
-        <i class="fas fa-calendar-times"></i>
-        <p>No time off records could be displayed</p>
-      </div>
-    `;
+    console.log("Updating time off list with", snapshot.size, "records");
+    if (timeOffHTML) {
+      timeOffList.innerHTML = timeOffHTML;
 
-    // Add event listeners to edit and delete buttons
-    document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
-      btn.addEventListener("click", () => showEditTimeOffModal(btn.dataset.id));
-    });
+      // Add event listeners to edit and delete buttons
+      document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          showEditTimeOffModal(btn.dataset.id)
+        );
+      });
 
-    document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
-      btn.addEventListener("click", () => confirmDeleteTimeOff(btn.dataset.id));
-    });
+      document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          confirmDeleteTimeOff(btn.dataset.id)
+        );
+      });
+
+      console.log("Time off list updated and event listeners attached");
+    } else {
+      timeOffList.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-calendar-times"></i>
+          <p>No time off records could be displayed</p>
+        </div>
+      `;
+      console.warn("No time off HTML was generated despite finding records");
+    }
   } catch (error) {
     console.error("Error loading time off data:", error);
+
+    // Show error state to user
+    const timeOffList = document.getElementById("time-off-list");
+    if (timeOffList) {
+      timeOffList.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>Error loading time off records</p>
+          <small>${error.message}</small>
+          <button class="primary-btn retry-btn">Retry</button>
+        </div>
+      `;
+
+      // Add retry button functionality
+      timeOffList
+        .querySelector(".retry-btn")
+        ?.addEventListener("click", loadTimeOffData);
+    }
   }
 }
 
