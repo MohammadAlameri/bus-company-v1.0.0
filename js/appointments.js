@@ -9,6 +9,11 @@ function loadAppointments() {
   appointmentsSection.innerHTML = `
         <div class="section-header">
             <h2>Appointments Management</h2>
+            <div class="section-actions">
+                <button id="refresh-appointments-btn" class="refresh-btn secondary-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
         </div>
         
         <div class="search-filter">
@@ -69,6 +74,15 @@ function loadAppointments() {
     });
   }
 
+  // Add event listener to refresh button
+  const refreshBtn = document.getElementById("refresh-appointments-btn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      showMessage("Refreshing appointments data...", "info");
+      fetchAppointments();
+    });
+  }
+
   // Fetch appointments
   fetchAppointments();
 }
@@ -80,6 +94,13 @@ async function fetchAppointments() {
       "appointments-table-body"
     );
     if (!appointmentsTableBody) return;
+
+    // Update UI to show loading
+    appointmentsTableBody.innerHTML = `
+        <tr>
+            <td colspan="7" style="text-align: center;">Loading appointments...</td>
+        </tr>
+    `;
 
     // Check if currentCompany is available
     if (!currentCompany || !currentCompany.id) {
@@ -109,13 +130,49 @@ async function fetchAppointments() {
     // Get trip IDs
     const tripIds = trips.map((trip) => trip.id);
 
-    // Query appointments for these trips
-    const snapshot = await appointmentsRef
-      .where("tripId", "in", tripIds)
-      .orderBy("createdAt", "desc")
-      .get();
+    // If there are too many trip IDs, we may need to chunk the query
+    const chunkSize = 10; // Firestore 'in' query is limited to 10 items
+    const tripIdChunks = [];
 
-    if (snapshot.empty) {
+    for (let i = 0; i < tripIds.length; i += chunkSize) {
+      tripIdChunks.push(tripIds.slice(i, i + chunkSize));
+    }
+
+    // Store all appointment data
+    window.allAppointments = [];
+
+    // Process each chunk
+    for (const chunk of tripIdChunks) {
+      // Query appointments for this chunk of trips
+      const snapshot = await appointmentsRef.where("tripId", "in", chunk).get();
+
+      if (!snapshot.empty) {
+        snapshot.forEach((doc) => {
+          const appointmentData = {
+            id: doc.id,
+            ...doc.data(),
+          };
+          window.allAppointments.push(appointmentData);
+        });
+      }
+    }
+
+    // Sort appointments by createdAt (descending)
+    window.allAppointments.sort((a, b) => {
+      const timeA = a.createdAt
+        ? a.createdAt.toDate
+          ? a.createdAt.toDate()
+          : new Date(a.createdAt)
+        : new Date(0);
+      const timeB = b.createdAt
+        ? b.createdAt.toDate
+          ? b.createdAt.toDate()
+          : new Date(b.createdAt)
+        : new Date(0);
+      return timeB - timeA;
+    });
+
+    if (window.allAppointments.length === 0) {
       appointmentsTableBody.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align: center;">No appointments found</td>
@@ -124,22 +181,12 @@ async function fetchAppointments() {
       return;
     }
 
-    // Create table rows
+    // Clear table body before adding appointments
     appointmentsTableBody.innerHTML = "";
-
-    // Store all appointment data for filtering
-    window.allAppointments = [];
 
     const promises = [];
 
-    snapshot.forEach((doc) => {
-      const appointmentData = {
-        id: doc.id,
-        ...doc.data(),
-      };
-
-      window.allAppointments.push(appointmentData);
-
+    for (const appointmentData of window.allAppointments) {
       // Find trip data
       const trip = trips.find((t) => t.id === appointmentData.tripId);
       if (trip) {
@@ -162,13 +209,18 @@ async function fetchAppointments() {
         });
 
       promises.push(promise);
-    });
+    }
 
     // Wait for all promises to resolve
     await Promise.all(promises);
 
     // Add event listeners to action buttons
     addAppointmentActionListeners();
+
+    console.log(
+      "Appointments loaded successfully:",
+      window.allAppointments.length
+    );
   } catch (error) {
     console.error("Error fetching appointments:", error);
 

@@ -93,10 +93,9 @@ async function fetchDrivers() {
 
     console.log("Fetching drivers for company ID:", currentCompany.id);
 
-    // Query drivers for this company
+    // Query drivers for this company - without using a composite index
     const snapshot = await driversRef
       .where("companyId", "==", currentCompany.id)
-      .orderBy("name")
       .get();
 
     if (snapshot.empty) {
@@ -110,12 +109,25 @@ async function fetchDrivers() {
 
     // Create table rows
     driversTableBody.innerHTML = "";
+
+    // Sort the drivers by name manually (client-side sorting)
+    const drivers = [];
     snapshot.forEach((doc) => {
-      const driverData = {
+      drivers.push({
         id: doc.id,
         ...doc.data(),
-      };
+      });
+    });
 
+    // Sort by name
+    drivers.sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    // Add each driver to the table
+    drivers.forEach((driverData) => {
       addDriverToTable(driverData);
     });
 

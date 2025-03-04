@@ -176,12 +176,72 @@ function showEditProfileModal() {
             
             <div class="form-footer">
                 <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                <button type="button" class="primary-btn" onclick="showMessage('Profile update feature coming soon', 'info')">Save Changes</button>
+                <button type="button" class="primary-btn" onclick="updateCompanyProfile()">Save Changes</button>
             </div>
         </div>
     `;
 
   showModal("Edit Company Profile", modalContent);
+}
+
+// Update company profile
+async function updateCompanyProfile() {
+  try {
+    const companyName = document
+      .getElementById("edit-company-name")
+      .value.trim();
+    const phoneNumber = document
+      .getElementById("edit-company-phone")
+      .value.trim();
+    const bankAccount = document
+      .getElementById("edit-company-bank")
+      .value.trim();
+    const bio = document.getElementById("edit-company-bio").value.trim();
+
+    if (!companyName) {
+      showMessage("Company name cannot be empty", "error");
+      return;
+    }
+
+    // Show loading message
+    showMessage("Updating profile...", "info");
+
+    // Update Firestore
+    await companiesRef.doc(currentCompany.id).update({
+      name: companyName,
+      phoneNumber: phoneNumber,
+      banckAccountNo: bankAccount,
+      bio: bio,
+      updatedAt: getTimestamp(),
+    });
+
+    // Update local company data
+    currentCompany.name = companyName;
+    currentCompany.phoneNumber = phoneNumber;
+    currentCompany.banckAccountNo = bankAccount;
+    currentCompany.bio = bio;
+
+    // Update stored company data
+    setCurrentCompany(currentCompany);
+
+    // Hide modal and reload profile
+    hideModal();
+    loadCompanyProfile();
+
+    // Update company name in header
+    if (document.getElementById("company-name")) {
+      document.getElementById("company-name").textContent = companyName;
+    }
+
+    // Log activity
+    await logActivity("update", "company", currentCompany.id);
+
+    // Show success message
+    showMessage("Profile updated successfully", "success");
+  } catch (error) {
+    console.error("Error updating company profile:", error);
+    showMessage(`Error updating profile: ${error.message}`, "error");
+  }
 }
 
 // Add styles for company profile section

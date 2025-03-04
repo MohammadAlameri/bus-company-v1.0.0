@@ -96,10 +96,9 @@ async function fetchBuses() {
 
     console.log("Fetching buses for company ID:", currentCompany.id);
 
-    // Query buses/vehicles for this company
+    // Query buses/vehicles for this company - without using a composite index
     const snapshot = await vehiclesRef
       .where("companyId", "==", currentCompany.id)
-      .orderBy("createdAt", "desc")
       .get();
 
     if (snapshot.empty) {
@@ -117,14 +116,31 @@ async function fetchBuses() {
     // Store all bus data for filtering
     window.allBuses = [];
 
-    const promises = [];
-
+    // Get all buses and sort them by creation time manually
+    const buses = [];
     snapshot.forEach((doc) => {
       const busData = {
         id: doc.id,
         ...doc.data(),
       };
+      buses.push(busData);
+    });
 
+    // Sort by createdAt (descending)
+    buses.sort((a, b) => {
+      const timeA = a.createdAt
+        ? new Date(a.createdAt.toDate ? a.createdAt.toDate() : a.createdAt)
+        : new Date(0);
+      const timeB = b.createdAt
+        ? new Date(b.createdAt.toDate ? b.createdAt.toDate() : b.createdAt)
+        : new Date(0);
+      return timeB - timeA; // Descending order (newest first)
+    });
+
+    // Process each bus
+    const promises = [];
+
+    buses.forEach((busData) => {
       window.allBuses.push(busData);
 
       // Fetch driver and address details

@@ -109,10 +109,9 @@ async function fetchTrips() {
 
     console.log("Fetching trips for company ID:", currentCompany.id);
 
-    // Query trips for this company
+    // Query trips for this company - without using a composite index
     const snapshot = await tripsRef
       .where("companyId", "==", currentCompany.id)
-      .orderBy("date", "desc")
       .get();
 
     if (snapshot.empty) {
@@ -130,14 +129,31 @@ async function fetchTrips() {
     // Store all trip data for filtering
     window.allTrips = [];
 
-    const promises = [];
-
+    // Get all trips and sort them by date manually
+    const trips = [];
     snapshot.forEach((doc) => {
       const tripData = {
         id: doc.id,
         ...doc.data(),
       };
+      trips.push(tripData);
+    });
 
+    // Sort by date (descending)
+    trips.sort((a, b) => {
+      const dateA = a.date
+        ? new Date(a.date.toDate ? a.date.toDate() : a.date)
+        : new Date(0);
+      const dateB = b.date
+        ? new Date(b.date.toDate ? b.date.toDate() : b.date)
+        : new Date(0);
+      return dateB - dateA; // Descending order (newest first)
+    });
+
+    // Process each trip
+    const promises = [];
+
+    trips.forEach((tripData) => {
       window.allTrips.push(tripData);
 
       // Fetch vehicle details
@@ -157,7 +173,7 @@ async function fetchTrips() {
     // Wait for all promises to resolve
     await Promise.all(promises);
 
-    // Add event listeners to edit and delete buttons
+    // Add event listeners to action buttons
     addTripActionListeners();
   } catch (error) {
     console.error("Error fetching trips:", error);
