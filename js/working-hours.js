@@ -340,173 +340,237 @@ async function saveWorkingHours() {
 // Load time off data
 async function loadTimeOffData() {
   try {
+    // STEP 1: Find the DOM element
     const timeOffList = document.getElementById("time-off-list");
+
     if (!timeOffList) {
-      console.error("Time off list element not found");
+      console.error("TIME OFF LIST ELEMENT NOT FOUND IN DOM");
+      alert("Debug: Time off list element not found");
       return;
     }
 
-    console.log("Loading time off data for company ID:", currentCompany.id);
+    // STEP 2: Show loading state with debugging info
+    console.warn("STARTING TIME OFF DATA LOAD - " + new Date().toISOString());
+    console.log("Current company data:", JSON.stringify(currentCompany));
 
     timeOffList.innerHTML = `
       <div class="loading-state">
         <i class="fas fa-spinner fa-spin"></i>
         <p>Loading time off records...</p>
+        <small>Company ID: ${currentCompany?.id || "N/A"}</small>
       </div>
     `;
 
-    // Make sure we're using the correct collection reference
-    console.log("Connecting to timeOff collection in Firestore");
-    const timeOffRef = db.collection("timeOff");
-
-    // Debug: Check if the collection exists and has documents
-    const allTimeOff = await timeOffRef.limit(5).get();
-    console.log("Found total time off records in db:", allTimeOff.size);
-
-    if (allTimeOff.empty) {
-      console.warn("No time off records found in the entire collection");
-    } else {
-      // Log the first few records to help debug
-      allTimeOff.forEach((doc) => {
-        console.log("Sample record:", doc.id, doc.data());
-      });
-    }
-
-    // Check if currentCompany is properly initialized
+    // STEP 3: Verify company data
     if (!currentCompany || !currentCompany.id) {
-      console.error(
-        "Current company data is missing or incomplete:",
-        currentCompany
-      );
+      console.error("ERROR: Missing company data", currentCompany);
       timeOffList.innerHTML = `
         <div class="error-state">
           <i class="fas fa-exclamation-triangle"></i>
-          <p>Error: Company data not available</p>
-          <button class="primary-btn retry-btn">Retry</button>
+          <p>Company data is missing or invalid</p>
+          <button onclick="location.reload()">Refresh Page</button>
         </div>
       `;
-
-      // Add retry button functionality
-      timeOffList
-        .querySelector(".retry-btn")
-        ?.addEventListener("click", loadTimeOffData);
       return;
     }
 
-    console.log(
-      "Querying timeOff collection for company ID:",
-      currentCompany.id
-    );
-    const snapshot = await timeOffRef
+    // STEP 4: Query Firestore directly with extreme debugging
+    console.warn("QUERYING FIRESTORE TIME OFF COLLECTION");
+
+    // First get ALL records to verify collection exists and has data
+    const db = firebase.firestore();
+    const timeOffRef = db.collection("timeOff");
+
+    console.log("Checking for ANY time off records...");
+    const sampleCheck = await timeOffRef.limit(5).get();
+
+    console.log(`Found ${sampleCheck.size} records in timeOff collection`);
+    if (!sampleCheck.empty) {
+      sampleCheck.forEach((doc) => {
+        console.log("Sample record:", doc.id, JSON.stringify(doc.data()));
+      });
+    }
+
+    // STEP 5: Query for this specific company's records
+    console.log(`Querying specifically for company ID: "${currentCompany.id}"`);
+    const companyRecords = await timeOffRef
       .where("companyId", "==", currentCompany.id)
       .orderBy("startDate", "desc")
       .get();
 
-    console.log("Found time off records for this company:", snapshot.size);
+    console.log(
+      `Found ${companyRecords.size} records for company ID ${currentCompany.id}`
+    );
 
-    if (snapshot.empty) {
+    // STEP 6: Handle empty results
+    if (companyRecords.empty) {
+      console.warn("No records found for this company");
       timeOffList.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-calendar-times"></i>
           <p>No time off records found</p>
-          <small>CompanyID: ${currentCompany.id}</small>
+          <small>Company ID: ${currentCompany.id}</small>
+          <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
         </div>
       `;
       return;
     }
 
+    // STEP 7: Process records one by one with careful error handling
+    console.log("Building time off display HTML...");
     let timeOffHTML = "";
-    snapshot.forEach((doc) => {
-      const timeOff = doc.data();
-      console.log("Processing time off record:", doc.id, timeOff);
+    let recordCount = 0;
 
-      // Check if dates are valid
-      let startDate, endDate;
+    companyRecords.forEach((doc) => {
       try {
-        startDate = timeOff.startDate
-          ? timeOff.startDate.toDate
-            ? timeOff.startDate.toDate()
-            : new Date(timeOff.startDate)
-          : new Date();
-        endDate = timeOff.endDate
-          ? timeOff.endDate.toDate
-            ? timeOff.endDate.toDate()
-            : new Date(timeOff.endDate)
-          : new Date();
-      } catch (e) {
-        console.error("Error parsing dates for timeOff:", e, timeOff);
-        startDate = new Date();
-        endDate = new Date();
-      }
+        recordCount++;
+        const timeOff = doc.data();
+        console.log(
+          `Processing record ${recordCount}:`,
+          doc.id,
+          JSON.stringify(timeOff)
+        );
 
-      timeOffHTML += `
-        <div class="time-off-item" data-id="${doc.id}">
-          <div class="time-off-date">
-            <span>${startDate.toLocaleDateString()}</span>
-            <span>to</span>
-            <span>${endDate.toLocaleDateString()}</span>
+        // Handle dates extremely carefully
+        let startDateObj, endDateObj;
+        let startDateStr = "Invalid date";
+        let endDateStr = "Invalid date";
+
+        try {
+          // Handle Firestore Timestamp objects
+          if (
+            timeOff.startDate &&
+            typeof timeOff.startDate.toDate === "function"
+          ) {
+            startDateObj = timeOff.startDate.toDate();
+            startDateStr = startDateObj.toLocaleDateString();
+          }
+          // Handle string dates or timestamps
+          else if (timeOff.startDate) {
+            startDateObj = new Date(timeOff.startDate);
+            startDateStr = startDateObj.toLocaleDateString();
+          }
+
+          if (timeOff.endDate && typeof timeOff.endDate.toDate === "function") {
+            endDateObj = timeOff.endDate.toDate();
+            endDateStr = endDateObj.toLocaleDateString();
+          } else if (timeOff.endDate) {
+            endDateObj = new Date(timeOff.endDate);
+            endDateStr = endDateObj.toLocaleDateString();
+          }
+        } catch (dateError) {
+          console.error("Date parsing error:", dateError);
+        }
+
+        // Add this record to our HTML
+        timeOffHTML += `
+          <div class="time-off-item" data-id="${doc.id}">
+            <div class="time-off-date">
+              <span>${startDateStr}</span>
+              <span>to</span>
+              <span>${endDateStr}</span>
+            </div>
+            <div class="time-off-reason">
+              ${timeOff.reason || "No reason provided"}
+            </div>
+            <div class="time-off-actions">
+              <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="icon-btn delete-time-off-btn" data-id="${doc.id}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
           </div>
-          <div class="time-off-reason">
-            ${timeOff.reason || "No reason provided"}
-          </div>
-          <div class="time-off-actions">
-            <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="icon-btn delete-time-off-btn" data-id="${doc.id}">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `;
+        `;
+      } catch (recordError) {
+        console.error("Error processing record:", recordError);
+      }
     });
 
-    console.log("Updating time off list with", snapshot.size, "records");
+    // STEP 8: Update the UI with our generated HTML
+    console.log("Updating time off list HTML with generated content");
     if (timeOffHTML) {
-      timeOffList.innerHTML = timeOffHTML;
+      // Force update the UI even if there's a problem by using setTimeout
+      setTimeout(() => {
+        try {
+          timeOffList.innerHTML = timeOffHTML;
+          console.log(
+            "Successfully updated time off list with records:",
+            recordCount
+          );
 
-      // Add event listeners to edit and delete buttons
-      document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
-        btn.addEventListener("click", () =>
-          showEditTimeOffModal(btn.dataset.id)
-        );
-      });
+          // STEP 9: Add event listeners to the buttons
+          try {
+            const editButtons = document.querySelectorAll(".edit-time-off-btn");
+            const deleteButtons = document.querySelectorAll(
+              ".delete-time-off-btn"
+            );
 
-      document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
-        btn.addEventListener("click", () =>
-          confirmDeleteTimeOff(btn.dataset.id)
-        );
-      });
+            console.log(
+              `Adding event listeners to ${editButtons.length} edit buttons and ${deleteButtons.length} delete buttons`
+            );
 
-      console.log("Time off list updated and event listeners attached");
+            editButtons.forEach((btn) => {
+              btn.addEventListener("click", () => {
+                console.log("Edit button clicked for:", btn.dataset.id);
+                showEditTimeOffModal(btn.dataset.id);
+              });
+            });
+
+            deleteButtons.forEach((btn) => {
+              btn.addEventListener("click", () => {
+                console.log("Delete button clicked for:", btn.dataset.id);
+                confirmDeleteTimeOff(btn.dataset.id);
+              });
+            });
+
+            console.log("All event listeners added successfully");
+          } catch (listenerError) {
+            console.error("Error adding event listeners:", listenerError);
+          }
+        } catch (updateError) {
+          console.error("Error updating time off list:", updateError);
+          timeOffList.innerHTML = `
+            <div class="error-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Error displaying time off records</p>
+              <small>${updateError.message}</small>
+              <button onclick="loadTimeOffData()">Try Again</button>
+            </div>
+          `;
+        }
+      }, 100); // Small delay to ensure the DOM is ready
     } else {
+      console.warn("No HTML generated despite finding records");
       timeOffList.innerHTML = `
         <div class="empty-state">
-          <i class="fas fa-calendar-times"></i>
-          <p>No time off records could be displayed</p>
+          <i class="fas fa-exclamation-circle"></i>
+          <p>Could not display time off records</p>
+          <button onclick="loadTimeOffData()">Try Again</button>
         </div>
       `;
-      console.warn("No time off HTML was generated despite finding records");
     }
   } catch (error) {
-    console.error("Error loading time off data:", error);
+    console.error("CRITICAL ERROR in loadTimeOffData:", error);
 
-    // Show error state to user
-    const timeOffList = document.getElementById("time-off-list");
-    if (timeOffList) {
-      timeOffList.innerHTML = `
-        <div class="error-state">
-          <i class="fas fa-exclamation-triangle"></i>
-          <p>Error loading time off records</p>
-          <small>${error.message}</small>
-          <button class="primary-btn retry-btn">Retry</button>
-        </div>
-      `;
-
-      // Add retry button functionality
-      timeOffList
-        .querySelector(".retry-btn")
-        ?.addEventListener("click", loadTimeOffData);
+    // Try to show an error message even if there are other issues
+    try {
+      const timeOffList = document.getElementById("time-off-list");
+      if (timeOffList) {
+        timeOffList.innerHTML = `
+          <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Failed to load time off records</p>
+            <small>${error.message}</small>
+            <button onclick="loadTimeOffData()">Try Again</button>
+          </div>
+        `;
+      } else {
+        alert("Critical error loading time off data: " + error.message);
+      }
+    } catch (finalError) {
+      alert("Fatal error in time off system: " + error.message);
     }
   }
 }
@@ -566,22 +630,47 @@ async function addTimeOff() {
       return;
     }
 
+    // Verify company data is available
+    if (!currentCompany || !currentCompany.id) {
+      console.error(
+        "Cannot add time off: company data is missing",
+        currentCompany
+      );
+      showMessage(
+        "Error: Company data is not available. Please refresh the page.",
+        "error"
+      );
+      return;
+    }
+
     // Show loading message
     showMessage("Adding time off record...", "info");
+    console.log("Adding time off record with dates:", startDate, endDate);
+    console.log("Current company ID:", currentCompany.id);
 
-    // Add to Firestore
-    await db.collection("timeOff").add({
+    // Create the time off data object
+    const timeOffData = {
       companyId: currentCompany.id,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: firebase.firestore.Timestamp.fromDate(new Date(startDate)),
+      endDate: firebase.firestore.Timestamp.fromDate(new Date(endDate)),
       reason: reason,
       createdAt: getTimestamp(),
       updatedAt: getTimestamp(),
-    });
+    };
+
+    console.log("Time off data to be saved:", JSON.stringify(timeOffData));
+
+    // Add to Firestore
+    const docRef = await db.collection("timeOff").add(timeOffData);
+    console.log("Time off record added with ID:", docRef.id);
 
     // Hide modal and reload time off data
     hideModal();
-    loadTimeOffData();
+
+    // Give the database time to update before reloading
+    setTimeout(() => {
+      loadTimeOffData();
+    }, 500);
 
     // Log activity
     await logActivity("create", "timeOff", currentCompany.id);
@@ -589,8 +678,8 @@ async function addTimeOff() {
     // Show success message
     showMessage("Time off record added successfully", "success");
   } catch (error) {
-    console.error("Error adding time off:", error);
-    showMessage(`Error adding time off: ${error.message}`, "error");
+    console.error("Error adding time off record:", error);
+    showMessage("Error adding time off record: " + error.message, "error");
   }
 }
 
