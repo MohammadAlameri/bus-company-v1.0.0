@@ -9,7 +9,12 @@ function loadDrivers() {
   driversSection.innerHTML = `
         <div class="section-header">
             <h2>Drivers Management</h2>
-            <button id="add-driver-btn" class="primary-btn">Add Driver</button>
+            <div class="section-actions">
+                <button id="refresh-drivers-btn" class="refresh-btn secondary-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="add-driver-btn" class="primary-btn">Add Driver</button>
+            </div>
         </div>
         
         <div class="search-filter">
@@ -41,10 +46,19 @@ function loadDrivers() {
         </div>
     `;
 
-  // Add event listener to add driver button
+  // Add event listeners to add driver button
   const addDriverBtn = document.getElementById("add-driver-btn");
   if (addDriverBtn) {
     addDriverBtn.addEventListener("click", showAddDriverModal);
+  }
+
+  // Add event listener to refresh drivers button
+  const refreshDriversBtn = document.getElementById("refresh-drivers-btn");
+  if (refreshDriversBtn) {
+    refreshDriversBtn.addEventListener("click", () => {
+      showMessage("Refreshing drivers data...", "info");
+      fetchDrivers();
+    });
   }
 
   // Add event listener to search input
@@ -730,6 +744,21 @@ driverStyles.textContent = `
     .form-group textarea:focus {
         outline: none;
         border-color: var(--primary-color);
+    }
+
+    .section-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .refresh-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .refresh-btn i {
+        font-size: 0.9rem;
     }
 `;
 document.head.appendChild(driverStyles);

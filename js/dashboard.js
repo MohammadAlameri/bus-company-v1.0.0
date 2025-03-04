@@ -592,36 +592,172 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Load section data
 function loadSectionData(sectionId) {
-  switch (sectionId) {
-    case "drivers":
-      loadDrivers();
-      break;
-    case "trips":
-      loadTrips();
-      break;
-    case "buses":
-      loadBuses();
-      break;
-    case "appointments":
-      loadAppointments();
-      break;
-    case "payments":
-      loadPayments();
-      break;
-    case "reviews":
-      loadReviews();
-      break;
-    case "working-hours":
-      loadWorkingHours();
-      break;
-    case "company-profile":
-      loadCompanyProfile();
-      break;
-    case "notifications":
-      loadNotifications();
-      break;
+  console.log(`Loading section data for: ${sectionId}`);
+  try {
+    switch (sectionId) {
+      case "overview":
+        // Already loaded on dashboard initialization
+        break;
+      case "drivers":
+        if (typeof loadDrivers === "function") {
+          loadDrivers();
+        } else {
+          console.error("loadDrivers function not defined");
+          showMessage("Driver management module not loaded properly", "error");
+        }
+        break;
+      case "trips":
+        if (typeof loadTrips === "function") {
+          loadTrips();
+        } else {
+          console.error("loadTrips function not defined");
+          showMessage("Trip management module not loaded properly", "error");
+        }
+        break;
+      case "buses":
+        if (typeof loadBuses === "function") {
+          loadBuses();
+        } else {
+          console.error("loadBuses function not defined");
+          showMessage("Bus management module not loaded properly", "error");
+        }
+        break;
+      case "appointments":
+        if (typeof loadAppointments === "function") {
+          loadAppointments();
+        } else {
+          console.error("loadAppointments function not defined");
+          showMessage("Appointments module not loaded properly", "error");
+        }
+        break;
+      case "payments":
+        if (typeof loadPayments === "function") {
+          loadPayments();
+        } else {
+          showPlaceholderSection("payments-section", "Payments Management");
+        }
+        break;
+      case "reviews":
+        if (typeof loadReviews === "function") {
+          loadReviews();
+        } else {
+          showPlaceholderSection("reviews-section", "Reviews Management");
+        }
+        break;
+      case "working-hours":
+        if (typeof loadWorkingHours === "function") {
+          loadWorkingHours();
+        } else {
+          showPlaceholderSection(
+            "working-hours-section",
+            "Working Hours Management"
+          );
+        }
+        break;
+      case "company-profile":
+        if (typeof loadCompanyProfile === "function") {
+          loadCompanyProfile();
+        } else {
+          showPlaceholderSection(
+            "company-profile-section",
+            "Company Profile Management"
+          );
+        }
+        break;
+      case "notifications":
+        if (typeof loadNotifications === "function") {
+          loadNotifications();
+        } else {
+          showPlaceholderSection(
+            "notifications-section",
+            "Notifications Management"
+          );
+        }
+        break;
+      default:
+        console.log(`No loader for section: ${sectionId}`);
+    }
+  } catch (error) {
+    console.error(`Error loading section ${sectionId}:`, error);
+    showMessage(
+      `Error loading ${sectionId} section: ${error.message}`,
+      "error"
+    );
   }
 }
+
+// Show placeholder section with "Coming Soon" message
+function showPlaceholderSection(sectionId, title) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+
+  section.innerHTML = `
+        <div class="section-header">
+            <h2>${title}</h2>
+            <button class="refresh-btn primary-btn" onclick="loadSectionData('${sectionId.replace(
+              "-section",
+              ""
+            )}')">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        
+        <div class="placeholder-content">
+            <div class="coming-soon">
+                <i class="fas fa-tools"></i>
+                <h3>Coming Soon</h3>
+                <p>This feature is currently under development and will be available soon.</p>
+            </div>
+        </div>
+    `;
+}
+
+// Add styles for placeholder sections
+const placeholderStyles = document.createElement("style");
+placeholderStyles.textContent = `
+    .placeholder-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 70vh;
+    }
+    
+    .coming-soon {
+        text-align: center;
+        padding: 2rem;
+        background-color: var(--light-gray);
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-width: 80%;
+    }
+    
+    .coming-soon i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+    
+    .coming-soon h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--dark);
+    }
+    
+    .coming-soon p {
+        color: var(--gray);
+    }
+    
+    .refresh-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .refresh-btn i {
+        font-size: 0.9rem;
+    }
+`;
+document.head.appendChild(placeholderStyles);
 
 // Modal functions
 function showModal(title, content) {

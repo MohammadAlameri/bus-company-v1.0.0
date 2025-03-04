@@ -9,7 +9,12 @@ function loadTrips() {
   tripsSection.innerHTML = `
         <div class="section-header">
             <h2>Trips Management</h2>
-            <button id="add-trip-btn" class="primary-btn">Add Trip</button>
+            <div class="section-actions">
+                <button id="refresh-trips-btn" class="refresh-btn secondary-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button id="add-trip-btn" class="primary-btn">Add Trip</button>
+            </div>
         </div>
         
         <div class="search-filter">
@@ -20,8 +25,8 @@ function loadTrips() {
             <div class="filter-controls">
                 <select id="trip-filter">
                     <option value="all">All Trips</option>
-                    <option value="upcoming">Upcoming Trips</option>
-                    <option value="past">Past Trips</option>
+                    <option value="upcoming">Upcoming</option>
+                    <option value="past">Past</option>
                 </select>
             </div>
         </div>
@@ -30,13 +35,13 @@ function loadTrips() {
             <table class="data-table" id="trips-table">
                 <thead>
                     <tr>
-                        <th>Vehicle</th>
                         <th>From</th>
                         <th>To</th>
                         <th>Date</th>
-                        <th>Departure</th>
-                        <th>Arrival</th>
+                        <th>Time</th>
+                        <th>Bus</th>
                         <th>Price</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -49,22 +54,29 @@ function loadTrips() {
         </div>
     `;
 
-  // Add event listener to add trip button
+  // Add event listeners
   const addTripBtn = document.getElementById("add-trip-btn");
   if (addTripBtn) {
     addTripBtn.addEventListener("click", showAddTripModal);
   }
 
-  // Add event listener to search input
+  const refreshTripsBtn = document.getElementById("refresh-trips-btn");
+  if (refreshTripsBtn) {
+    refreshTripsBtn.addEventListener("click", () => {
+      showMessage("Refreshing trips data...", "info");
+      fetchTrips();
+    });
+  }
+
   const tripSearch = document.getElementById("trip-search");
   if (tripSearch) {
     tripSearch.addEventListener("input", () => {
       const searchTerm = tripSearch.value.toLowerCase();
-      filterTrips(searchTerm);
+      const filterValue = document.getElementById("trip-filter").value;
+      filterTrips(searchTerm, filterValue);
     });
   }
 
-  // Add event listener to filter select
   const tripFilter = document.getElementById("trip-filter");
   if (tripFilter) {
     tripFilter.addEventListener("change", () => {
@@ -232,13 +244,13 @@ function addTripToTable(trip) {
   }
 
   tr.innerHTML = `
-        <td>${vehicleInfo}</td>
         <td>${trip.fromCity || "N/A"}</td>
         <td>${trip.toCity || "N/A"}</td>
         <td>${formattedDate}</td>
-        <td>${departureTime}</td>
-        <td>${arrivalTime}</td>
+        <td>${departureTime} - ${arrivalTime}</td>
+        <td>${vehicleInfo}</td>
         <td>${price}</td>
+        <td>${isPastTrip ? "Past" : "Upcoming"}</td>
         <td>
             <div class="table-actions">
                 <button class="edit-btn" data-id="${trip.id}">
@@ -283,9 +295,9 @@ function filterTrips(searchTerm = "", filterValue = "all") {
     // Skip rows with colspan (like "No trips found")
     if (row.cells.length <= 2) return;
 
-    const fromCity = row.cells[1].textContent.toLowerCase();
-    const toCity = row.cells[2].textContent.toLowerCase();
-    const date = row.cells[3].textContent.toLowerCase();
+    const fromCity = row.cells[0].textContent.toLowerCase();
+    const toCity = row.cells[1].textContent.toLowerCase();
+    const date = row.cells[2].textContent.toLowerCase();
 
     // Check search term match
     const matchesSearch =
@@ -848,6 +860,21 @@ tripStyles.textContent = `
     
     .past-trip {
         opacity: 0.7;
+    }
+    
+    .section-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .refresh-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .refresh-btn i {
+        font-size: 0.9rem;
     }
 `;
 document.head.appendChild(tripStyles);
