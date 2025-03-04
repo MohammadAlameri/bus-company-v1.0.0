@@ -10,6 +10,59 @@ const registerBtn = document.getElementById("register-btn");
 const registerGoogleBtn = document.getElementById("register-google-btn");
 const logoutBtn = document.getElementById("logout-btn");
 
+// Create a verification section element
+const verificationSection = document.createElement("div");
+verificationSection.id = "verification-section";
+verificationSection.className = "auth-section hidden";
+verificationSection.innerHTML = `
+  <div class="auth-container">
+    <div class="logo">
+      <i class="fas fa-bus"></i>
+      <h1>Bus Company Dashboard</h1>
+    </div>
+    <div class="verify-email-container">
+      <h2>Verify Your Email</h2>
+      <p>We've sent a verification email to <span id="user-email">your email</span>.</p>
+      <p>Please check your inbox and click the verification link to continue.</p>
+      
+      <div class="verification-actions">
+        <button id="resend-verification" class="secondary-btn">
+          <i class="fas fa-paper-plane"></i> Resend Verification Email
+        </button>
+        <button id="check-verification" class="primary-btn">
+          <i class="fas fa-check-circle"></i> I've Verified My Email
+        </button>
+      </div>
+      
+      <div class="verification-footer">
+        <button id="return-to-login" class="text-btn">
+          <i class="fas fa-arrow-left"></i> Return to Login
+        </button>
+        <button id="logout-from-verification" class="text-btn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </div>
+  </div>
+`;
+
+// Add verification section to the container
+document.querySelector(".container").appendChild(verificationSection);
+
+// Add verification section event listeners
+document
+  .getElementById("resend-verification")
+  ?.addEventListener("click", resendVerificationEmail);
+document
+  .getElementById("check-verification")
+  ?.addEventListener("click", checkEmailVerification);
+document
+  .getElementById("return-to-login")
+  ?.addEventListener("click", returnToLogin);
+document
+  .getElementById("logout-from-verification")
+  ?.addEventListener("click", () => auth.signOut());
+
 // Show register form
 if (showRegisterLink) {
   showRegisterLink.addEventListener("click", (e) => {
@@ -50,6 +103,15 @@ if (loginBtn) {
       );
       const user = userCredential.user;
 
+      // Check if email is verified
+      if (!user.emailVerified) {
+        showMessage("Please verify your email before continuing", "warning");
+        showVerificationScreen(user.email);
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Login";
+        return;
+      }
+
       // Check if company profile exists
       const profileExists = await checkCompanyProfileExists(user.uid);
 
@@ -74,16 +136,6 @@ if (loginBtn) {
       // Fetch company profile
       const companyProfile = await fetchCompanyProfile(user.uid);
       setCurrentCompany(companyProfile);
-
-      // Check email verification status
-      if (!user.emailVerified) {
-        console.log("Email not verified:", user.email);
-        showMessage(
-          "Your email is not verified. Please check your inbox or request a new verification email.",
-          "warning",
-          8000
-        );
-      }
 
       // Show dashboard
       showDashboard();
@@ -134,16 +186,6 @@ if (googleLoginBtn) {
       const companyProfile = await fetchCompanyProfile(user.uid);
       setCurrentCompany(companyProfile);
 
-      // Check email verification status
-      if (!user.emailVerified) {
-        console.log("Email not verified:", user.email);
-        showMessage(
-          "Your email is not verified. Please check your inbox or request a new verification email.",
-          "warning",
-          8000
-        );
-      }
-
       // Show dashboard
       showDashboard();
 
@@ -160,14 +202,14 @@ if (googleLoginBtn) {
 // Email Registration
 if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
-    const companyName = document.getElementById("register-company").value;
+    const name = document.getElementById("register-name").value;
     const email = document.getElementById("register-email").value;
     const password = document.getElementById("register-password").value;
     const confirmPassword = document.getElementById(
       "register-confirm-password"
     ).value;
 
-    if (!companyName || !email || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword) {
       showMessage("Please fill in all fields", "error");
       return;
     }
@@ -188,21 +230,26 @@ if (registerBtn) {
       );
       const user = userCredential.user;
 
+      // Send email verification
+      await user.sendEmailVerification();
+
+      // Update display name
+      await user.updateProfile({
+        displayName: name,
+      });
+
       // Create company profile
-      showMessage("Creating company profile...", "info");
-      await createCompanyProfile(user.uid, companyName, email, "email");
+      await createCompanyProfile(user.uid, name, email, "email");
 
-      // Fetch company profile
-      const companyProfile = await fetchCompanyProfile(user.uid);
-      setCurrentCompany(companyProfile);
+      // Show verification screen
+      showVerificationScreen(email);
 
-      // Show dashboard
-      showDashboard();
-
-      // Initialize dashboard data
-      initializeDashboard();
-
-      showMessage("Registration successful!", "success");
+      showMessage(
+        "Registration successful! Please verify your email.",
+        "success"
+      );
+      registerBtn.disabled = false;
+      registerBtn.textContent = "Register";
     } catch (error) {
       console.error("Registration error:", error);
       showMessage(`Registration failed: ${error.message}`, "error");
@@ -374,65 +421,46 @@ async function fetchCompanyProfile(userId) {
 // Authentication state change listener
 auth.onAuthStateChanged(async (user) => {
   if (user) {
+    console.log("User is signed in:", user.email);
+
+    // Check email verification
+    if (!user.emailVerified) {
+      console.log("Email not verified, showing verification screen");
+      showVerificationScreen(user.email);
+      return;
+    }
+
     try {
-      console.log("User signed in:", user.uid);
-
       // Check if company profile exists
-      const profileExists = await checkCompanyProfileExists(user.uid);
-      console.log("Profile exists:", profileExists);
+      const companyProfile = await fetchCompanyProfile(user.uid);
 
-      if (profileExists) {
-        // Fetch and set company profile
-        const companyProfile = await fetchCompanyProfile(user.uid);
+      if (companyProfile) {
+        // Set current company
         setCurrentCompany(companyProfile);
-
-        // Check email verification status
-        if (!user.emailVerified) {
-          console.log("Email not verified:", user.email);
-          showMessage(
-            "Your email is not verified. Please check your inbox or request a new verification email.",
-            "warning",
-            8000
-          );
-        }
 
         // Show dashboard
         showDashboard();
 
-        // Initialize dashboard data
+        // Initialize dashboard
         initializeDashboard();
       } else {
-        // Create company profile
-        console.log("No profile exists, creating one...");
-        const userName =
-          user.displayName || "Company " + user.email.split("@")[0];
-        const companyProfile = await createCompanyProfile(
-          user.uid,
-          userName,
-          user.email,
-          user.providerData[0].providerId === "google.com" ? "google" : "email"
+        console.error("No company profile found for user:", user.uid);
+        showMessage(
+          "Error: Company profile not found. Please contact support.",
+          "error"
         );
-
-        // Set company profile and show dashboard
-        setCurrentCompany(companyProfile);
-        showDashboard();
-
-        // Initialize dashboard data
-        initializeDashboard();
       }
     } catch (error) {
       console.error("Error in auth state change:", error);
-      showMessage(`Authentication error: ${error.message}`, "error");
+      showMessage(`Error: ${error.message}`, "error");
     }
   } else {
-    // User is signed out
-    console.log("User signed out");
-    clearCurrentCompany();
-
-    // Show login view
-    if (dashboardSection) dashboardSection.classList.add("hidden");
+    console.log("User is signed out");
+    // Show login screen
     if (loginSection) loginSection.classList.remove("hidden");
     if (registerSection) registerSection.classList.add("hidden");
+    if (verificationSection) verificationSection.classList.add("hidden");
+    if (dashboardSection) dashboardSection.classList.add("hidden");
 
     // Reset form fields
     if (document.getElementById("email"))
@@ -481,13 +509,102 @@ async function checkCompanyProfileExists(userId) {
 // Show dashboard
 function showDashboard() {
   console.log("Showing dashboard");
+
+  // Check if user is logged in and email is verified
+  const user = auth.currentUser;
+  if (user && !user.emailVerified) {
+    showVerificationScreen(user.email);
+    return;
+  }
+
   if (loginSection) loginSection.classList.add("hidden");
   if (registerSection) registerSection.classList.add("hidden");
+  if (verificationSection) verificationSection.classList.add("hidden");
   if (dashboardSection) dashboardSection.classList.remove("hidden");
 }
 
+// Show verification screen
+function showVerificationScreen(email) {
+  console.log("Showing verification screen for:", email);
+  if (loginSection) loginSection.classList.add("hidden");
+  if (registerSection) registerSection.classList.add("hidden");
+  if (dashboardSection) dashboardSection.classList.add("hidden");
+
+  // Update user email in the verification screen
+  const userEmailSpan = document.getElementById("user-email");
+  if (userEmailSpan) userEmailSpan.textContent = email;
+
+  verificationSection.classList.remove("hidden");
+}
+
+// Resend verification email
+async function resendVerificationEmail() {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      await user.sendEmailVerification();
+      showMessage(
+        "Verification email sent. Please check your inbox.",
+        "success"
+      );
+    } else {
+      showMessage(
+        "You must be logged in to resend verification email.",
+        "error"
+      );
+    }
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    showMessage(`Error: ${error.message}`, "error");
+  }
+}
+
+// Check if email has been verified
+async function checkEmailVerification() {
+  try {
+    // Reload user to get updated email verification status
+    await auth.currentUser.reload();
+    const user = auth.currentUser;
+
+    if (user.emailVerified) {
+      showMessage("Email verified! Redirecting to dashboard...", "success");
+
+      // Fetch company profile
+      const companyProfile = await fetchCompanyProfile(user.uid);
+      setCurrentCompany(companyProfile);
+
+      // Show dashboard
+      setTimeout(() => {
+        showDashboard();
+        initializeDashboard();
+      }, 1000);
+    } else {
+      showMessage(
+        "Your email is not verified yet. Please check your inbox.",
+        "warning"
+      );
+    }
+  } catch (error) {
+    console.error("Error checking verification:", error);
+    showMessage(`Error: ${error.message}`, "error");
+  }
+}
+
+// Return to login screen
+function returnToLogin() {
+  if (auth.currentUser) {
+    auth.signOut().then(() => {
+      if (verificationSection) verificationSection.classList.add("hidden");
+      if (loginSection) loginSection.classList.remove("hidden");
+    });
+  } else {
+    if (verificationSection) verificationSection.classList.add("hidden");
+    if (loginSection) loginSection.classList.remove("hidden");
+  }
+}
+
 // Show message
-function showMessage(message, type = "info", duration = 3000) {
+function showMessage(message, type = "info") {
   // Create message element
   const messageEl = document.createElement("div");
   messageEl.className = `message ${type}`;
@@ -496,13 +613,13 @@ function showMessage(message, type = "info", duration = 3000) {
   // Add to body
   document.body.appendChild(messageEl);
 
-  // Remove after duration
+  // Remove after 3 seconds
   setTimeout(() => {
     messageEl.classList.add("hiding");
     setTimeout(() => {
       document.body.removeChild(messageEl);
     }, 500);
-  }, duration);
+  }, 3000);
 }
 
 // Add CSS for messages
@@ -529,6 +646,9 @@ style.textContent = `
     .message.success {
         background-color: #2ecc71;
     }
+    .message.warning {
+        background-color: #f39c12;
+    }
     .message.hiding {
         opacity: 0;
         transform: translateY(-20px);
@@ -536,132 +656,60 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Current company data
-let currentCompany = null;
-
-// Set current company
-function setCurrentCompany(company) {
-  if (!company) return;
-
-  currentCompany = company;
-  localStorage.setItem("currentCompany", JSON.stringify(company));
-
-  // Check email verification status
-  checkEmailVerification();
-}
-
-// Check if email is verified and show appropriate UI
-function checkEmailVerification() {
-  // Only check if auth is available
-  if (!auth || !auth.currentUser) return;
-
-  const user = auth.currentUser;
-  console.log("Checking email verification status for:", user.email);
-  console.log("Email verified:", user.emailVerified);
-
-  // Update UI elements if they exist
-  updateVerificationUI(user.emailVerified);
-}
-
-// Update verification UI elements
-function updateVerificationUI(isVerified) {
-  const emailVerificationBanner = document.getElementById(
-    "email-verification-banner"
-  );
-
-  // If there's no banner yet, but we need to show verification message, create one
-  if (!emailVerificationBanner && !isVerified) {
-    createVerificationBanner();
-  } else if (emailVerificationBanner) {
-    // If banner exists, update it based on verification status
-    if (isVerified) {
-      // If verified, remove the banner
-      emailVerificationBanner.remove();
-    } else {
-      // Banner exists and user not verified, ensure it's visible
-      emailVerificationBanner.classList.remove("hidden");
-    }
+// Add styles for verification section
+const verificationStyles = document.createElement("style");
+verificationStyles.textContent = `
+  .verify-email-container {
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 30px;
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
   }
-
-  // Also update any other UI elements that show verification status
-  const companyVerifiedBadge = document.getElementById(
-    "company-verified-badge"
-  );
-  if (companyVerifiedBadge) {
-    companyVerifiedBadge.textContent = isVerified ? "Verified" : "Unverified";
-    companyVerifiedBadge.className = isVerified
-      ? "status-badge status-success"
-      : "status-badge status-warning";
+  
+  .verify-email-container h2 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
   }
-}
-
-// Create verification banner
-function createVerificationBanner() {
-  const dashboardSection = document.getElementById("dashboard-section");
-  if (!dashboardSection) return;
-
-  // Create the banner
-  const banner = document.createElement("div");
-  banner.id = "email-verification-banner";
-  banner.className = "verification-banner";
-  banner.innerHTML = `
-    <i class="fas fa-exclamation-triangle"></i>
-    <div class="verification-message">
-      <p>Your email address is not verified. Please check your inbox for a verification email or request a new one.</p>
-    </div>
-    <button id="send-verification-email-btn" class="primary-btn">Send Verification Email</button>
-    <button id="dismiss-verification-banner-btn" class="text-btn">Dismiss</button>
-  `;
-
-  // Insert at the top of dashboard
-  dashboardSection.insertBefore(banner, dashboardSection.firstChild);
-
-  // Add event listeners
-  document
-    .getElementById("send-verification-email-btn")
-    .addEventListener("click", sendVerificationEmail);
-  document
-    .getElementById("dismiss-verification-banner-btn")
-    .addEventListener("click", dismissVerificationBanner);
-}
-
-// Send verification email
-async function sendVerificationEmail() {
-  if (!auth || !auth.currentUser) return;
-
-  try {
-    showMessage("Sending verification email...", "info");
-    await auth.currentUser.sendEmailVerification();
-    showMessage("Verification email sent! Please check your inbox.", "success");
-  } catch (error) {
-    console.error("Error sending verification email:", error);
-    showMessage(`Error sending verification email: ${error.message}`, "error");
+  
+  .verify-email-container p {
+    margin-bottom: 15px;
+    color: var(--dark-gray);
   }
-}
-
-// Dismiss verification banner
-function dismissVerificationBanner() {
-  const banner = document.getElementById("email-verification-banner");
-  if (banner) {
-    banner.classList.add("hidden");
+  
+  #user-email {
+    font-weight: bold;
+    color: var(--darkest-gray);
   }
-}
-
-// Clear current company
-function clearCurrentCompany() {
-  currentCompany = null;
-  localStorage.removeItem("currentCompany");
-}
-
-// Get current company
-function getCurrentCompany() {
-  if (currentCompany) return currentCompany;
-
-  const storedCompany = localStorage.getItem("currentCompany");
-  if (storedCompany) {
-    currentCompany = JSON.parse(storedCompany);
-    return currentCompany;
+  
+  .verification-actions {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
   }
-
-  return null;
-}
+  
+  .verification-footer {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .text-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .text-btn:hover {
+    text-decoration: underline;
+  }
+`;
+document.head.appendChild(verificationStyles);

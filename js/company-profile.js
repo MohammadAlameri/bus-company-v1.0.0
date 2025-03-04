@@ -103,31 +103,6 @@ function loadCompanyProfile() {
                           currentCompany.authProvider || "Email"
                         }</div>
                     </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Email Verification</div>
-                        <div class="detail-value">
-                            <span id="company-verified-badge" class="${
-                              auth.currentUser && auth.currentUser.emailVerified
-                                ? "status-badge status-success"
-                                : "status-badge status-warning"
-                            }">
-                              ${
-                                auth.currentUser &&
-                                auth.currentUser.emailVerified
-                                  ? "Verified"
-                                  : "Unverified"
-                              }
-                            </span>
-                            ${
-                              auth.currentUser &&
-                              !auth.currentUser.emailVerified
-                                ? `<button onclick="sendVerificationEmail()" class="text-btn verification-btn">
-                                  <i class="fas fa-envelope"></i> Send Verification Email
-                                 </button>`
-                                : ""
-                            }
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
