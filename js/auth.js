@@ -392,3 +392,123 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Sign in with Google function
+async function signInWithGoogle() {
+  try {
+    showLoader();
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    const userCredential = await firebase.auth().signInWithPopup(provider);
+    const user = userCredential.user;
+
+    // Check if company document exists, if not create it
+    const companyDoc = await db.collection("companies").doc(user.uid).get();
+
+    if (!companyDoc.exists) {
+      // Create company document in Firestore
+      await db
+        .collection("companies")
+        .doc(user.uid)
+        .set({
+          companyName: user.displayName || "New Company",
+          email: user.email,
+          phoneNumber: user.phoneNumber || "",
+          address: "",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          isActive: true,
+          profileComplete: false,
+        });
+
+      // Log activity
+      await logActivity("register", "company", user.uid);
+    }
+
+    hideLoader();
+    showMessage("Logged in successfully!", "success");
+
+    // Redirect after successful login
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1500);
+  } catch (error) {
+    hideLoader();
+    console.error("Google login failed:", error);
+
+    if (error.code === "auth/unauthorized-domain") {
+      showMessage(
+        `Authentication Error: You need to add this domain (${window.location.hostname}) to the authorized domains in Firebase console.`,
+        "error"
+      );
+      showGoogleAuthInstructions();
+    } else {
+      showMessage(`Google login failed: ${error.message}`, "error");
+    }
+  }
+}
+
+// Function to show Google Auth setup instructions
+function showGoogleAuthInstructions() {
+  const modalContent = `
+        <div class="auth-instructions">
+            <h3>Firebase Authentication Setup Required</h3>
+            <p>To enable Google sign-in, you need to add your domain to Firebase's authorized domains list:</p>
+            
+            <ol>
+                <li>Go to the <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
+                <li>Select your project</li>
+                <li>Go to <strong>Authentication</strong> → <strong>Sign-in method</strong> tab</li>
+                <li>Scroll down to <strong>Authorized domains</strong></li>
+                <li>Click <strong>Add domain</strong> and add: <code>${window.location.hostname}</code></li>
+                <li>Click <strong>Save</strong></li>
+            </ol>
+            
+            <p>After completing these steps, refresh this page and try logging in again.</p>
+            
+            <div class="form-footer">
+                <button type="button" class="primary-btn" onclick="hideModal()">Got it</button>
+            </div>
+        </div>
+    `;
+
+  showModal("Authentication Setup Required", modalContent);
+}
+
+// Add styles for auth instructions
+const authInstructionsStyles = document.createElement("style");
+authInstructionsStyles.textContent = `
+    .auth-instructions {
+        padding: 15px;
+        max-width: 600px;
+    }
+    
+    .auth-instructions h3 {
+        margin-bottom: 15px;
+        color: var(--primary-color);
+    }
+    
+    .auth-instructions p {
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+    
+    .auth-instructions ol {
+        margin-bottom: 20px;
+        padding-left: 20px;
+    }
+    
+    .auth-instructions li {
+        margin-bottom: 10px;
+        line-height: 1.5;
+    }
+    
+    .auth-instructions code {
+        background-color: #f5f5f5;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        color: #e74c3c;
+    }
+`;
+document.head.appendChild(authInstructionsStyles);
