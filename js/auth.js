@@ -202,12 +202,20 @@ if (googleLoginBtn) {
 // Email Registration
 if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
-    const name = document.getElementById("register-name").value;
+    console.log("Register button clicked");
+    const name = document.getElementById("register-company").value;
     const email = document.getElementById("register-email").value;
     const password = document.getElementById("register-password").value;
     const confirmPassword = document.getElementById(
       "register-confirm-password"
     ).value;
+
+    console.log("Form values:", {
+      name,
+      email,
+      password: "***",
+      confirmPassword: "***",
+    });
 
     if (!name || !email || !password || !confirmPassword) {
       showMessage("Please fill in all fields", "error");
@@ -230,16 +238,21 @@ if (registerBtn) {
       );
       const user = userCredential.user;
 
+      console.log("User created successfully:", user.uid);
+
       // Send email verification
       await user.sendEmailVerification();
+      console.log("Verification email sent");
 
       // Update display name
       await user.updateProfile({
         displayName: name,
       });
+      console.log("Profile display name updated");
 
       // Create company profile
       await createCompanyProfile(user.uid, name, email, "email");
+      console.log("Company profile created");
 
       // Show verification screen
       showVerificationScreen(email);
