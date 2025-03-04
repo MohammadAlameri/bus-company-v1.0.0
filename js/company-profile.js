@@ -69,7 +69,10 @@ function loadCompanyProfile() {
                     <h4>Address Information</h4>
                     <div class="detail-item">
                         <div class="detail-label">Current Address</div>
-                        <div class="detail-value">Address information will be available soon</div>
+                        <div class="detail-value">${
+                          currentCompany.address ||
+                          "No address information available"
+                        }</div>
                     </div>
                     <div class="edit-address-btn-container">
                         <button class="secondary-btn">Edit Address</button>

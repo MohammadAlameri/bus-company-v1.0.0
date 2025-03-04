@@ -483,12 +483,18 @@ button {
     border-radius: 8px;
     padding: 20px;
     box-shadow: var(--shadow);
+    height: 300px;
+    overflow: hidden;
 }
 
 .chart-container h3 {
     margin-bottom: 15px;
     font-size: 18px;
     color: var(--darkest-gray);
+}
+
+.chart-container canvas {
+    max-height: 240px;
 }
 
 .recent-activities {
