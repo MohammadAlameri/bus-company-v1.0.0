@@ -739,14 +739,25 @@ async function rejectAppointment(appointmentId) {
 // Send notification to passenger
 async function sendNotificationToPassenger(passengerId, title, content) {
   try {
-    await notificationsRef.add({
+    const notificationData = {
       from: currentCompany.id,
       to: passengerId,
       title,
       content,
       sentAt: getTimestamp(),
       isRead: false,
+    };
+
+    const notificationRef = await notificationsRef.add(notificationData);
+
+    // Add id field to the notification
+    await notificationsRef.doc(notificationRef.id).update({
+      id: notificationRef.id,
     });
+
+    console.log(
+      `Notification sent to passenger ${passengerId} with ID ${notificationRef.id}`
+    );
   } catch (error) {
     console.error("Error sending notification:", error);
   }

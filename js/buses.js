@@ -710,9 +710,15 @@ async function handleAddBus(e) {
       district: districtInput ? districtInput.value : "",
       country: countryInput ? countryInput.value : "",
       nextTo: nextToInput ? nextToInput.value : "",
+      createdAt: getTimestamp(),
     };
 
     const addressRef = await addressesRef.add(addressData);
+
+    // Add the id field to the address document
+    await addressesRef.doc(addressRef.id).update({
+      id: addressRef.id,
+    });
 
     // Create vehicle
     const busData = {
@@ -723,9 +729,15 @@ async function handleAddBus(e) {
       countOfSeats: parseInt(seatsInput.value) || 0,
       addressId: addressRef.id,
       companyId: currentCompany.id,
+      createdAt: getTimestamp(),
     };
 
     const newBusRef = await vehiclesRef.add(busData);
+
+    // Update the vehicle document with its ID
+    await vehiclesRef.doc(newBusRef.id).update({
+      id: newBusRef.id,
+    });
 
     // Log to console instead of writing to activityLogs
     console.log(

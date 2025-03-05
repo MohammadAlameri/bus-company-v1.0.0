@@ -533,7 +533,7 @@ async function handleAddDriver(e) {
 
   try {
     // Create address
-    const addressRef = await addressesRef.add({
+    const addressData = {
       latLon: null,
       streetName: "",
       streetNumber: "",
@@ -541,10 +541,19 @@ async function handleAddDriver(e) {
       district: "",
       country: "",
       nextTo: "",
+      createdAt: getTimestamp(),
+    };
+
+    const addressRef = await addressesRef.add(addressData);
+
+    // Add the id field to the address document
+    await addressesRef.doc(addressRef.id).update({
+      id: addressRef.id,
     });
 
     // Create driver
     const driverData = {
+      id: null, // Will be set after document creation
       name: nameInput.value,
       email: emailInput.value,
       phoneNumber: phoneInput.value,
@@ -566,6 +575,11 @@ async function handleAddDriver(e) {
     };
 
     const newDriverRef = await driversRef.add(driverData);
+
+    // Update the driver document with its ID
+    await driversRef.doc(newDriverRef.id).update({
+      id: newDriverRef.id,
+    });
 
     // Log activity
     await logActivity("create", "driver", newDriverRef.id);

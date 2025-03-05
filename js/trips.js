@@ -721,9 +721,15 @@ async function handleAddTrip(e) {
       price: parseFloat(priceInput.value),
       currency: currencyInput.value, // YER, SAR, USD
       companyId: currentCompany.id,
+      createdAt: getTimestamp(),
     };
 
     const newTripRef = await tripsRef.add(tripData);
+
+    // Add the id field to the trip document
+    await tripsRef.doc(newTripRef.id).update({
+      id: newTripRef.id,
+    });
 
     // Log activity
     await logActivity("create", "trip", newTripRef.id);
@@ -798,9 +804,18 @@ async function handleEditTrip(e) {
       typeOfTransportation: transportTypeInput.value,
       price: parseFloat(priceInput.value),
       currency: currencyInput.value,
+      updatedAt: getTimestamp(),
     };
 
     await tripsRef.doc(tripId).update(tripData);
+
+    // Check if the id field exists, add it if it doesn't
+    const tripDoc = await tripsRef.doc(tripId).get();
+    if (tripDoc.exists && !tripDoc.data().id) {
+      await tripsRef.doc(tripId).update({
+        id: tripId,
+      });
+    }
 
     // Log activity
     await logActivity("update", "trip", tripId);

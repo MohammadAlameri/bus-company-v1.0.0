@@ -784,6 +784,12 @@ async function addTimeOff() {
     const docRef = await db.collection("timeOff").add(timeOffData);
     console.log("Time off record added with ID:", docRef.id);
 
+    // Add id field to the document
+    await db.collection("timeOff").doc(docRef.id).update({
+      id: docRef.id,
+    });
+    console.log("Added id field to time off record");
+
     // Hide modal and reload time off data
     hideModal();
 

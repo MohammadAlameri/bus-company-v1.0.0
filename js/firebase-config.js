@@ -378,7 +378,7 @@ const reviewsRef = db.collection("reviews").withConverter(reviewConverter);
 const workingHoursRef = db
   .collection("workingHours")
   .withConverter(workingHoursConverter);
-const timeOffsRef = db.collection("timeOffs").withConverter(timeOffConverter);
+const timeOffsRef = db.collection("timeOff").withConverter(timeOffConverter);
 const notificationsRef = db
   .collection("notifications")
   .withConverter(notificationConverter);
@@ -449,3 +449,92 @@ async function logActivity(action, entityType, entityId) {
 
 // Initialize
 document.addEventListener("DOMContentLoaded", loadCurrentCompany);
+
+// Function to add ID field to all existing documents in a collection
+async function addIdToCollection(collectionRef) {
+  try {
+    const snapshot = await collectionRef.get();
+    const batch = db.batch();
+    let count = 0;
+
+    snapshot.forEach((doc) => {
+      // Skip if the document already has an id field
+      if (doc.data().id) return;
+
+      count++;
+      batch.update(doc.ref, { id: doc.id });
+    });
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`Updated ${count} documents in ${collectionRef.path}`);
+      return count;
+    } else {
+      console.log(`No documents needed updating in ${collectionRef.path}`);
+      return 0;
+    }
+  } catch (error) {
+    console.error(`Error updating documents in ${collectionRef.path}:`, error);
+    throw error;
+  }
+}
+
+// Function to update all existing documents across multiple collections
+async function updateAllDocumentsWithIds() {
+  try {
+    console.log("Starting update of all documents with id fields...");
+
+    const companiesCount = await addIdToCollection(companiesRef);
+    const addressesCount = await addIdToCollection(addressesRef);
+    const driversCount = await addIdToCollection(driversRef);
+    const vehiclesCount = await addIdToCollection(vehiclesRef);
+    const appointmentsCount = await addIdToCollection(appointmentsRef);
+    const tripsCount = await addIdToCollection(tripsRef);
+    const passengersCount = await addIdToCollection(passengersRef);
+    const paymentsCount = await addIdToCollection(paymentsRef);
+    const reviewsCount = await addIdToCollection(reviewsRef);
+    const workingHoursCount = await addIdToCollection(workingHoursRef);
+    const timeOffsCount = await addIdToCollection(timeOffsRef);
+    const notificationsCount = await addIdToCollection(notificationsRef);
+
+    const totalCount =
+      companiesCount +
+      addressesCount +
+      driversCount +
+      vehiclesCount +
+      appointmentsCount +
+      tripsCount +
+      passengersCount +
+      paymentsCount +
+      reviewsCount +
+      workingHoursCount +
+      timeOffsCount +
+      notificationsCount;
+
+    console.log(
+      `Update complete. ${totalCount} documents updated across all collections.`
+    );
+
+    return {
+      companiesCount,
+      addressesCount,
+      driversCount,
+      vehiclesCount,
+      appointmentsCount,
+      tripsCount,
+      passengersCount,
+      paymentsCount,
+      reviewsCount,
+      workingHoursCount,
+      timeOffsCount,
+      notificationsCount,
+      totalCount,
+    };
+  } catch (error) {
+    console.error("Error updating documents:", error);
+    throw error;
+  }
+}
+
+// Export the function to make it available globally
+window.updateAllDocumentsWithIds = updateAllDocumentsWithIds;

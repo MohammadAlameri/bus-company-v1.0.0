@@ -13,6 +13,7 @@ let verificationSection;
 let resendVerificationBtn;
 let checkVerificationBtn;
 let returnToLoginBtn;
+let forgotPasswordLink;
 
 // Wait for the document to be fully loaded before accessing DOM elements
 document.addEventListener("DOMContentLoaded", () => {
@@ -29,10 +30,10 @@ document.addEventListener("DOMContentLoaded", () => {
   registerBtn = document.getElementById("register-btn");
   registerGoogleBtn = document.getElementById("register-google-btn");
   logoutBtn = document.getElementById("logout-btn");
+  forgotPasswordLink = document.getElementById("forgot-password");
 
   // Initialize verification section
   initializeVerificationSection();
-  document.body.appendChild(verificationSection);
 
   // Initialize verification buttons after the section is created
   resendVerificationBtn = document.getElementById("resend-verification");
@@ -41,7 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("Register button element:", registerBtn);
 
-  // Initialize event listeners
+  // Check if user is already logged in
+  firebase.auth().onAuthStateChanged(handleAuthStateChanged);
+
+  // Set up event listeners
   setupEventListeners();
 });
 
@@ -161,6 +165,14 @@ function setupEventListeners() {
 
   if (returnToLoginBtn) {
     returnToLoginBtn.addEventListener("click", returnToLogin);
+  }
+
+  // Forgot password link
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      handlePasswordReset();
+    });
   }
 }
 
@@ -630,6 +642,12 @@ verificationStyles.textContent = `
     width: 100%;
     max-width: 500px;
     text-align: center;
+    margin: 0 auto; /* Center the container */
+  }
+  
+  #verification-section {
+    padding-top: 0; /* Remove extra padding */
+    margin-top: 0; /* Remove extra margin */
   }
   
   .verify-email-container h2 {
@@ -693,7 +711,7 @@ async function createCompanyProfile(userId, name, email, authProvider) {
     }
 
     // Create a default address first
-    const addressRef = await addressesRef.add({
+    const addressData = {
       latLon: null,
       streetName: "",
       streetNumber: "",
@@ -701,12 +719,21 @@ async function createCompanyProfile(userId, name, email, authProvider) {
       district: "",
       country: "",
       nextTo: "",
+      createdAt: getTimestamp(),
+    };
+
+    const addressRef = await addressesRef.add(addressData);
+
+    // Update the address document with its ID
+    await addressesRef.doc(addressRef.id).update({
+      id: addressRef.id,
     });
 
     console.log("Created address with ID:", addressRef.id);
 
     // Create company profile
     const companyData = {
+      id: userId,
       name,
       bio: "",
       email,
@@ -777,4 +804,86 @@ async function fetchCompanyProfile(userId) {
     console.error("Error fetching company profile:", error);
     throw error;
   }
+}
+
+// Handle password reset request
+function handlePasswordReset() {
+  // Create a modal for password reset
+  const modalContent = `
+    <div class="password-reset-form">
+      <h2>Reset Your Password</h2>
+      <p>Enter your email address and we'll send you a link to reset your password.</p>
+      <div class="input-group">
+        <label for="reset-email">Email</label>
+        <input type="email" id="reset-email" placeholder="Enter your email">
+      </div>
+      <div class="form-footer">
+        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" class="primary-btn" id="send-reset-link">Send Reset Link</button>
+      </div>
+    </div>
+  `;
+
+  // Show the modal
+  showModal("Reset Password", modalContent);
+
+  // Pre-fill email if it's already entered in the login form
+  const loginEmail = document.getElementById("email").value;
+  if (loginEmail) {
+    document.getElementById("reset-email").value = loginEmail;
+  }
+
+  // Add event listener to the send reset link button
+  document
+    .getElementById("send-reset-link")
+    .addEventListener("click", async () => {
+      const email = document.getElementById("reset-email").value.trim();
+
+      if (!email) {
+        showMessage("Please enter your email address", "error");
+        return;
+      }
+
+      try {
+        // Send password reset email
+        await auth.sendPasswordResetEmail(email);
+
+        // Hide the modal
+        hideModal();
+
+        // Show success message
+        showMessage(
+          "Password reset link sent! Check your email inbox.",
+          "success"
+        );
+      } catch (error) {
+        console.error("Error sending password reset email:", error);
+        showMessage(`Error: ${error.message}`, "error");
+      }
+    });
+}
+
+// Show modal function
+function showModal(title, content) {
+  const modal = document.getElementById("modal");
+  const modalTitle = document.createElement("h3");
+  modalTitle.className = "modal-title";
+  modalTitle.textContent = title;
+
+  document.getElementById("modal-body").innerHTML = "";
+  document.getElementById("modal-body").appendChild(modalTitle);
+  document
+    .getElementById("modal-body")
+    .insertAdjacentHTML("beforeend", content);
+
+  modal.classList.remove("hidden");
+
+  // Add event listener to close button
+  document.querySelector(".close-btn").addEventListener("click", hideModal);
+}
+
+// Hide modal function
+function hideModal() {
+  const modal = document.getElementById("modal");
+  modal.classList.add("hidden");
 }

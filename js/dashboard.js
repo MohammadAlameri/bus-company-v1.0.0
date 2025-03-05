@@ -806,3 +806,138 @@ window.addEventListener("error", (e) => {
   console.error("Global error:", e.error);
   showMessage(`An error occurred: ${e.message}`, "error");
 });
+
+// Add a button to the dashboard to run the ID update process
+function addUpdateIdsButton() {
+  // Check if we already have a settings section in the sidebar
+  let settingsItem = document.querySelector(
+    '.menu-item[data-section="settings"]'
+  );
+
+  // If not, create one
+  if (!settingsItem) {
+    const sidebarMenu = document.querySelector(".sidebar-menu");
+
+    if (sidebarMenu) {
+      // Create settings menu item
+      settingsItem = document.createElement("li");
+      settingsItem.className = "menu-item";
+      settingsItem.setAttribute("data-section", "settings");
+      settingsItem.innerHTML = `
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      `;
+
+      // Add it to the sidebar
+      sidebarMenu.appendChild(settingsItem);
+
+      // Create settings section in main content
+      const content = document.querySelector(".content");
+      if (content) {
+        const settingsSection = document.createElement("section");
+        settingsSection.id = "settings-section";
+        settingsSection.className = "dashboard-section hidden";
+        settingsSection.innerHTML = `
+          <h2>System Settings</h2>
+          <div class="settings-container">
+            <div class="settings-card">
+              <h3>Database Maintenance</h3>
+              <p>Update all existing documents to include their ID as a field. This helps with data consistency.</p>
+              <button id="update-ids-btn" class="primary-btn">
+                <i class="fas fa-database"></i> Update Document IDs
+              </button>
+              <div id="update-progress" class="update-progress hidden">
+                <div class="progress-bar">
+                  <div class="progress-bar-inner"></div>
+                </div>
+                <p id="update-status">Processing...</p>
+              </div>
+            </div>
+          </div>
+        `;
+
+        content.appendChild(settingsSection);
+
+        // Add click event to the settings menu item
+        settingsItem.addEventListener("click", function () {
+          // Hide all sections
+          const sections = document.querySelectorAll(".dashboard-section");
+          sections.forEach((section) => section.classList.add("hidden"));
+
+          // Remove active class from all menu items
+          const menuItems = document.querySelectorAll(".menu-item");
+          menuItems.forEach((item) => item.classList.remove("active"));
+
+          // Show settings section and set this item as active
+          document
+            .getElementById("settings-section")
+            .classList.remove("hidden");
+          this.classList.add("active");
+        });
+
+        // Add event listener to the update IDs button
+        document
+          .getElementById("update-ids-btn")
+          .addEventListener("click", async function () {
+            try {
+              // Disable the button
+              this.disabled = true;
+
+              // Show progress
+              const progressDiv = document.getElementById("update-progress");
+              progressDiv.classList.remove("hidden");
+
+              // Update status
+              document.getElementById("update-status").textContent =
+                "Updating documents...";
+
+              // Run the update function
+              const result = await window.updateAllDocumentsWithIds();
+
+              // Update status with results
+              document.getElementById("update-status").innerHTML = `
+              Update complete.<br>
+              Companies: ${result.companiesCount}<br>
+              Addresses: ${result.addressesCount}<br>
+              Drivers: ${result.driversCount}<br>
+              Vehicles: ${result.vehiclesCount}<br>
+              Appointments: ${result.appointmentsCount}<br>
+              Trips: ${result.tripsCount}<br>
+              Passengers: ${result.passengersCount}<br>
+              Payments: ${result.paymentsCount}<br>
+              Reviews: ${result.reviewsCount}<br>
+              Working Hours: ${result.workingHoursCount}<br>
+              Time Offs: ${result.timeOffsCount}<br>
+              Notifications: ${result.notificationsCount}<br>
+              <strong>Total: ${result.totalCount} documents updated</strong>
+            `;
+
+              // Re-enable the button
+              this.disabled = false;
+
+              // Show success message
+              showMessage("Documents updated successfully", "success");
+            } catch (error) {
+              console.error("Error updating documents:", error);
+              document.getElementById(
+                "update-status"
+              ).textContent = `Error: ${error.message}`;
+              showMessage(
+                `Error updating documents: ${error.message}`,
+                "error"
+              );
+
+              // Re-enable the button
+              this.disabled = false;
+            }
+          });
+      }
+    }
+  }
+}
+
+// Call this function after the dashboard is initialized
+document.addEventListener("DOMContentLoaded", () => {
+  // Wait a bit to ensure the dashboard is fully loaded
+  setTimeout(addUpdateIdsButton, 1000);
+});

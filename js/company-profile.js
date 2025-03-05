@@ -348,7 +348,7 @@ function showEditAddressModal() {
 // Display the address form with pre-filled data
 function showAddressForm(addressData) {
   const modalContent = `
-    <div class="edit-address-form">
+        <div class="edit-address-form">
         <div class="form-row">
             <div class="form-group">
                 <label for="edit-company-street-name">Street Name</label>
@@ -409,14 +409,14 @@ function showAddressForm(addressData) {
                     }</span>
                 </div>
             </div>
+            </div>
+            
+            <div class="form-footer">
+                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                <button type="button" class="primary-btn" onclick="updateCompanyAddress()">Save Address</button>
+            </div>
         </div>
-        
-        <div class="form-footer">
-            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-            <button type="button" class="primary-btn" onclick="updateCompanyAddress()">Save Address</button>
-        </div>
-    </div>
-  `;
+    `;
 
   // Update the modal content
   document.querySelector(".modal-content").innerHTML = modalContent;
@@ -640,20 +640,33 @@ async function updateCompanyAddress() {
     if (currentCompany.addressId) {
       // Update existing address
       await addressesRef.doc(currentCompany.addressId).update(addressData);
+
+      // Check if the id field exists, add it if it doesn't
+      const addressDoc = await addressesRef.doc(currentCompany.addressId).get();
+      if (addressDoc.exists && !addressDoc.data().id) {
+        await addressesRef.doc(currentCompany.addressId).update({
+          id: currentCompany.addressId,
+        });
+      }
     } else {
       // Create new address
       addressData.createdAt = getTimestamp();
       const addressRef = await addressesRef.add(addressData);
 
-      // Update company with new addressId
-      await companiesRef.doc(currentCompany.id).update({
-        addressId: addressRef.id,
-        updatedAt: getTimestamp(),
+      // Add the id field to the new address document
+      await addressesRef.doc(addressRef.id).update({
+        id: addressRef.id,
       });
 
-      // Update local company data
+      // Update company with new addressId
+    await companiesRef.doc(currentCompany.id).update({
+        addressId: addressRef.id,
+      updatedAt: getTimestamp(),
+    });
+
+    // Update local company data
       currentCompany.addressId = addressRef.id;
-      setCurrentCompany(currentCompany);
+    setCurrentCompany(currentCompany);
     }
 
     // Hide modal and reload profile
