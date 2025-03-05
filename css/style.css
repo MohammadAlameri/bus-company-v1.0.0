@@ -1,0 +1,78 @@
+/* File Input Styling */
+.file-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  margin-bottom: 4px;
+}
+
+.file-input-preview {
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  text-align: center;
+  background-color: #f9f9f9;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.file-input-preview img {
+  max-height: 150px;
+  max-width: 100%;
+  object-fit: contain;
+  margin-bottom: 5px;
+}
+
+.file-input-preview span {
+  font-size: 14px;
+  color: #555;
+}
+
+.file-input-preview small {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.existing-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+}
+
+.existing-document i {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: #2c3e50;
+}
+
+/* Company profile image styles */
+.company-profile-image {
+  position: relative;
+}
+
+.company-profile-image .change-image-btn {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.company-profile-image .change-image-btn:hover {
+  background-color: #f5f5f5;
+} 

@@ -281,8 +281,11 @@ function showAddDriverModal() {
             </div>
             
             <div class="form-group">
-                <label for="driver-image">Profile Image URL</label>
-                <input type="url" id="driver-image">
+                <label for="driver-image">Profile Image</label>
+                <input type="file" id="driver-image" accept="image/*" class="file-input">
+                <div class="file-input-preview" id="driver-image-preview">
+                    <span>No image selected</span>
+                </div>
             </div>
             
             <div class="form-group">
@@ -291,8 +294,11 @@ function showAddDriverModal() {
             </div>
             
             <div class="form-group">
-                <label for="driver-license-url">License Document URL</label>
-                <input type="url" id="driver-license-url">
+                <label for="driver-license-url">License Document</label>
+                <input type="file" id="driver-license-url" accept="image/*,.pdf" class="file-input">
+                <div class="file-input-preview" id="driver-license-url-preview">
+                    <span>No document selected</span>
+                </div>
             </div>
             
             <div class="form-group">
@@ -301,8 +307,11 @@ function showAddDriverModal() {
             </div>
             
             <div class="form-group">
-                <label for="driver-nationality-url">Nationality Document URL</label>
-                <input type="url" id="driver-nationality-url">
+                <label for="driver-nationality-url">Nationality Document</label>
+                <input type="file" id="driver-nationality-url" accept="image/*,.pdf" class="file-input">
+                <div class="file-input-preview" id="driver-nationality-url-preview">
+                    <span>No document selected</span>
+                </div>
             </div>
             
             <div class="form-group">
@@ -311,8 +320,11 @@ function showAddDriverModal() {
             </div>
             
             <div class="form-group">
-                <label for="driver-passport-url">Passport Document URL</label>
-                <input type="url" id="driver-passport-url">
+                <label for="driver-passport-url">Passport Document</label>
+                <input type="file" id="driver-passport-url" accept="image/*,.pdf" class="file-input">
+                <div class="file-input-preview" id="driver-passport-url-preview">
+                    <span>No document selected</span>
+                </div>
             </div>
             
             <div class="form-footer">
@@ -328,6 +340,48 @@ function showAddDriverModal() {
   const form = document.getElementById("add-driver-form");
   if (form) {
     form.addEventListener("submit", handleAddDriver);
+  }
+
+  // Add event listeners for file inputs
+  setupFileInputPreviews("driver-image");
+  setupFileInputPreviews("driver-license-url");
+  setupFileInputPreviews("driver-nationality-url");
+  setupFileInputPreviews("driver-passport-url");
+}
+
+// Setup file input preview functionality
+function setupFileInputPreviews(inputId) {
+  const fileInput = document.getElementById(inputId);
+  const previewDiv = document.getElementById(`${inputId}-preview`);
+
+  if (fileInput && previewDiv) {
+    fileInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        const file = this.files[0];
+
+        // Check if it's an image
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            previewDiv.innerHTML = `
+              <img src="${e.target.result}" alt="Preview" style="max-width: 100%; max-height: 150px;">
+              <span>${file.name}</span>
+            `;
+          };
+
+          reader.readAsDataURL(file);
+        } else {
+          // For non-image files (like PDFs)
+          previewDiv.innerHTML = `
+            <i class="fas fa-file-pdf"></i>
+            <span>${file.name}</span>
+          `;
+        }
+      } else {
+        previewDiv.innerHTML = `<span>No file selected</span>`;
+      }
+    });
   }
 }
 
@@ -356,7 +410,7 @@ async function showEditDriverModal(driverId) {
     }
 
     const modalContent = `
-            <form id="edit-driver-form" data-id="${driver.id}">
+            <form id="edit-driver-form" data-driver-id="${driver.id}">
                 <div class="form-group">
                     <label for="edit-driver-name">Name</label>
                     <input type="text" id="edit-driver-name" value="${
@@ -407,10 +461,11 @@ async function showEditDriverModal(driverId) {
                 </div>
                 
                 <div class="form-group">
-                    <label for="edit-driver-image">Profile Image URL</label>
-                    <input type="url" id="edit-driver-image" value="${
-                      driver.imageURL || ""
-                    }">
+                    <label for="edit-driver-image">Profile Image</label>
+                    <input type="file" id="edit-driver-image" accept="image/*" class="file-input">
+                    <div class="file-input-preview" id="edit-driver-image-preview">
+                        <span>No image selected</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -421,10 +476,11 @@ async function showEditDriverModal(driverId) {
                 </div>
                 
                 <div class="form-group">
-                    <label for="edit-driver-license-url">License Document URL</label>
-                    <input type="url" id="edit-driver-license-url" value="${
-                      driver.licenseURL || ""
-                    }">
+                    <label for="edit-driver-license-url">License Document</label>
+                    <input type="file" id="edit-driver-license-url" accept="image/*,.pdf" class="file-input">
+                    <div class="file-input-preview" id="edit-driver-license-url-preview">
+                        <span>No document selected</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -435,10 +491,11 @@ async function showEditDriverModal(driverId) {
                 </div>
                 
                 <div class="form-group">
-                    <label for="edit-driver-nationality-url">Nationality Document URL</label>
-                    <input type="url" id="edit-driver-nationality-url" value="${
-                      driver.nationalityURL || ""
-                    }">
+                    <label for="edit-driver-nationality-url">Nationality Document</label>
+                    <input type="file" id="edit-driver-nationality-url" accept="image/*,.pdf" class="file-input">
+                    <div class="file-input-preview" id="edit-driver-nationality-url-preview">
+                        <span>No document selected</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -449,10 +506,11 @@ async function showEditDriverModal(driverId) {
                 </div>
                 
                 <div class="form-group">
-                    <label for="edit-driver-passport-url">Passport Document URL</label>
-                    <input type="url" id="edit-driver-passport-url" value="${
-                      driver.passportURL || ""
-                    }">
+                    <label for="edit-driver-passport-url">Passport Document</label>
+                    <input type="file" id="edit-driver-passport-url" accept="image/*,.pdf" class="file-input">
+                    <div class="file-input-preview" id="edit-driver-passport-url-preview">
+                        <span>No document selected</span>
+                    </div>
                 </div>
                 
                 <div class="form-footer">
@@ -469,9 +527,47 @@ async function showEditDriverModal(driverId) {
     if (form) {
       form.addEventListener("submit", handleEditDriver);
     }
+
+    // Set up the file input previews
+    setupFileInputPreviews("edit-driver-image");
+    setupFileInputPreviews("edit-driver-license-url");
+    setupFileInputPreviews("edit-driver-nationality-url");
+    setupFileInputPreviews("edit-driver-passport-url");
+
+    // Display existing image previews if available
+    displayExistingImagePreview(
+      "edit-driver-image-preview",
+      "Driver profile image"
+    );
+    displayExistingImagePreview(
+      "edit-driver-license-url-preview",
+      "License document"
+    );
+    displayExistingImagePreview(
+      "edit-driver-nationality-url-preview",
+      "Nationality document"
+    );
+    displayExistingImagePreview(
+      "edit-driver-passport-url-preview",
+      "Passport document"
+    );
   } catch (error) {
     console.error("Error fetching driver details:", error);
     showMessage("Error loading driver details", "error");
+  }
+}
+
+// Function to display a placeholder for existing documents
+function displayExistingImagePreview(previewId, documentType) {
+  const previewDiv = document.getElementById(previewId);
+  if (previewDiv) {
+    previewDiv.innerHTML = `
+      <div class="existing-document">
+        <i class="fas fa-file-image"></i>
+        <span>${documentType} (placeholder)</span>
+        <small>New selection will replace this</small>
+      </div>
+    `;
   }
 }
 
@@ -493,45 +589,37 @@ function confirmDeleteDriver(driverId) {
 // Handle add driver form submission
 async function handleAddDriver(e) {
   e.preventDefault();
-
-  const nameInput = document.getElementById("driver-name");
-  const emailInput = document.getElementById("driver-email");
-  const phoneInput = document.getElementById("driver-phone");
-  const genderInput = document.getElementById("driver-gender");
-  const dobInput = document.getElementById("driver-dob");
-  const bioInput = document.getElementById("driver-bio");
-  const imageInput = document.getElementById("driver-image");
-  const licenseNoInput = document.getElementById("driver-license-no");
-  const licenseUrlInput = document.getElementById("driver-license-url");
-  const nationalityNoInput = document.getElementById("driver-nationality-no");
-  const nationalityUrlInput = document.getElementById("driver-nationality-url");
-  const passportNoInput = document.getElementById("driver-passport-no");
-  const passportUrlInput = document.getElementById("driver-passport-url");
-
-  // Validate required fields
-  if (
-    !nameInput ||
-    !emailInput ||
-    !phoneInput ||
-    !genderInput ||
-    !dobInput ||
-    !licenseNoInput
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
-  }
-
-  // Validate phone number format (starts with 78,77,70,71,73 and has 9 digits total)
-  const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
-  if (!phoneRegex.test(phoneInput.value)) {
-    showMessage(
-      "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits long",
-      "error"
-    );
-    return;
-  }
+  showLoadingIndicator();
 
   try {
+    const name = document.getElementById("driver-name").value;
+    const email = document.getElementById("driver-email").value;
+    const phone = document.getElementById("driver-phone").value;
+    const gender = document.getElementById("driver-gender").value;
+    const dob = document.getElementById("driver-dob").value;
+    const bio = document.getElementById("driver-bio").value;
+    // Always use empty string for image URLs regardless of file input
+    const imageURL = ""; // Empty string instead of the actual file
+    const licenseNo = document.getElementById("driver-license-no").value;
+    const licenseURL = ""; // Empty string instead of the actual file
+    const nationalityNo = document.getElementById(
+      "driver-nationality-no"
+    ).value;
+    const nationalityURL = ""; // Empty string instead of the actual file
+    const passportNo = document.getElementById("driver-passport-no").value;
+    const passportURL = ""; // Empty string instead of the actual file
+
+    // Validate phone number format
+    const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
+    if (!phoneRegex.test(phone)) {
+      hideLoadingIndicator();
+      showNotification(
+        "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits in total.",
+        "error"
+      );
+      return;
+    }
+
     // Create address
     const addressData = {
       latLon: null,
@@ -554,19 +642,19 @@ async function handleAddDriver(e) {
     // Create driver
     const driverData = {
       id: null, // Will be set after document creation
-      name: nameInput.value,
-      email: emailInput.value,
-      phoneNumber: phoneInput.value,
-      gender: genderInput.value,
-      dateOfBirth: new Date(dobInput.value),
-      bio: bioInput.value || "",
-      imageURL: imageInput.value || "",
-      licenseNo: licenseNoInput.value,
-      licenseURL: licenseUrlInput.value || "",
-      nationalityNo: nationalityNoInput.value || "",
-      nationalityURL: nationalityUrlInput.value || "",
-      passportNo: passportNoInput.value || "",
-      passportURL: passportUrlInput.value || "",
+      name,
+      email,
+      phoneNumber: phone,
+      gender,
+      dateOfBirth: dob,
+      bio,
+      imageURL,
+      licenseNo: licenseNo,
+      licenseURL,
+      nationalityNo: nationalityNo,
+      nationalityURL,
+      passportNo: passportNo,
+      passportURL,
       addressId: addressRef.id,
       companyId: currentCompany.id,
       createdAt: getTimestamp(),
@@ -598,56 +686,54 @@ async function handleAddDriver(e) {
 // Handle edit driver form submission
 async function handleEditDriver(e) {
   e.preventDefault();
-
-  const form = e.target;
-  const driverId = form.getAttribute("data-id");
-
-  const nameInput = document.getElementById("edit-driver-name");
-  const emailInput = document.getElementById("edit-driver-email");
-  const phoneInput = document.getElementById("edit-driver-phone");
-  const genderInput = document.getElementById("edit-driver-gender");
-  const dobInput = document.getElementById("edit-driver-dob");
-  const bioInput = document.getElementById("edit-driver-bio");
-  const imageInput = document.getElementById("edit-driver-image");
-  const licenseNoInput = document.getElementById("edit-driver-license-no");
-  const licenseUrlInput = document.getElementById("edit-driver-license-url");
-  const nationalityNoInput = document.getElementById(
-    "edit-driver-nationality-no"
-  );
-  const nationalityUrlInput = document.getElementById(
-    "edit-driver-nationality-url"
-  );
-  const passportNoInput = document.getElementById("edit-driver-passport-no");
-  const passportUrlInput = document.getElementById("edit-driver-passport-url");
-
-  if (
-    !nameInput ||
-    !emailInput ||
-    !phoneInput ||
-    !genderInput ||
-    !dobInput ||
-    !licenseNoInput
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
-  }
+  const driverId = e.target.getAttribute("data-driver-id");
+  showLoadingIndicator();
 
   try {
+    const name = document.getElementById("edit-driver-name").value;
+    const email = document.getElementById("edit-driver-email").value;
+    const phone = document.getElementById("edit-driver-phone").value;
+    const gender = document.getElementById("edit-driver-gender").value;
+    const dob = document.getElementById("edit-driver-dob").value;
+    const bio = document.getElementById("edit-driver-bio").value;
+    // Always use empty string for image URLs regardless of file input
+    const imageURL = ""; // Empty string instead of the actual file
+    const licenseNo = document.getElementById("edit-driver-license-no").value;
+    const licenseURL = ""; // Empty string instead of the actual file
+    const nationalityNo = document.getElementById(
+      "edit-driver-nationality-no"
+    ).value;
+    const nationalityURL = ""; // Empty string instead of the actual file
+    const passportNo = document.getElementById("edit-driver-passport-no").value;
+    const passportURL = ""; // Empty string instead of the actual file
+
+    // Validate phone number format
+    const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
+    if (!phoneRegex.test(phone)) {
+      hideLoadingIndicator();
+      showNotification(
+        "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits in total.",
+        "error"
+      );
+      return;
+    }
+
     // Update driver
     const driverData = {
-      name: nameInput.value,
-      email: emailInput.value,
-      phoneNumber: phoneInput.value,
-      gender: genderInput.value,
-      dateOfBirth: new Date(dobInput.value),
-      bio: bioInput.value,
-      imageURL: imageInput.value,
-      licenseNo: licenseNoInput.value,
-      licenseURL: licenseUrlInput.value,
-      nationalityNo: nationalityNoInput.value,
-      nationalityURL: nationalityUrlInput.value,
-      passportNo: passportNoInput.value,
-      passportURL: passportUrlInput.value,
+      name,
+      email,
+      phoneNumber: phone,
+      gender,
+      dateOfBirth: dob,
+      bio,
+      imageURL,
+      licenseNo: licenseNo,
+      licenseURL,
+      nationalityNo: nationalityNo,
+      nationalityURL,
+      passportNo: passportNo,
+      passportURL,
+      updatedAt: getTimestamp(),
     };
 
     await driversRef.doc(driverId).update(driverData);

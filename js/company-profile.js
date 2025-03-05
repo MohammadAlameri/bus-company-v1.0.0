@@ -54,124 +54,95 @@ function loadCompanyProfile() {
   if (!companyProfileSection) return;
 
   companyProfileSection.innerHTML = `
-        <div class="section-header">
-            <h2>Company Profile</h2>
-            <div class="section-actions">
-                <button id="refresh-company-profile-btn" class="refresh-btn secondary-btn">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </button>
-                <button id="edit-company-profile-btn" class="primary-btn">Edit Profile</button>
-            </div>
-        </div>
-        
-        <div class="profile-container">
-            <div class="profile-header">
-                <div class="profile-image">
-                    <img src="${
-                      currentCompany.imageURL ||
-                      "https://via.placeholder.com/150"
-                    }" alt="${currentCompany.name}">
-                    <button class="change-image-btn">
-                        <i class="fas fa-camera"></i>
-                    </button>
-                </div>
-                <div class="profile-info">
-                    <h3>${currentCompany.name}</h3>
-                    <p>${currentCompany.email}</p>
-                    <div class="rating">
-                        <i class="fas fa-star"></i>
-                        <span>${currentCompany.rate || 0} (${
+    <div class="profile-header">
+      <div class="company-profile-image">
+        <img id="company-image" src="${
+          currentCompany.imageURL || "img/placeholder-company.jpg"
+        }" alt="${currentCompany.name}" class="profile-image">
+        <button type="button" class="change-image-btn" title="Change Image">
+          <i class="fas fa-camera"></i>
+        </button>
+      </div>
+      <div class="profile-info">
+        <h2>${currentCompany.name}</h2>
+        <p class="company-email">${currentCompany.email || ""}</p>
+        <p class="company-phone">${currentCompany.phoneNumber || ""}</p>
+        <div class="rating">
+          <i class="fas fa-star"></i>
+          <span>${currentCompany.rate || 0} (${
     currentCompany.reviewCount || 0
   } reviews)</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="profile-details">
-                <div class="detail-section">
-                    <h4>Company Information</h4>
-                    <div class="detail-item">
-                        <div class="detail-label">Phone Number</div>
-                        <div class="detail-value">${
-                          currentCompany.phoneNumber || "Not set"
-                        }</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Bank Account</div>
-                        <div class="detail-value">${
-                          currentCompany.banckAccountNo || "Not set"
-                        }</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Bio</div>
-                        <div class="detail-value">${
-                          currentCompany.bio || "No bio available"
-                        }</div>
-                    </div>
-                </div>
-                
-                <div class="detail-section">
-                    <h4>Address Information</h4>
-                    <div class="detail-item">
-                        <div class="detail-label">Current Address</div>
-                        <div class="detail-value" data-address="true">${addressDisplay}</div>
-                    </div>
-                    <div class="edit-address-btn-container">
-                        <button onclick="showEditAddressModal()" class="secondary-btn">Edit Address</button>
-                    </div>
-                </div>
-                
-                <div class="detail-section">
-                    <h4>Account Information</h4>
-                    <div class="detail-item">
-                        <div class="detail-label">Account Created</div>
-                        <div class="detail-value">${
-                          currentCompany.createdAt
-                            ? formatDate(currentCompany.createdAt)
-                            : "Unknown"
-                        }</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Last Login</div>
-                        <div class="detail-value">${
-                          currentCompany.lastLoginAt
-                            ? formatDate(currentCompany.lastLoginAt)
-                            : "Unknown"
-                        }</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Authentication Provider</div>
-                        <div class="detail-value">${
-                          currentCompany.authProvider || "Email"
-                        }</div>
-                    </div>
-                </div>
-            </div>
         </div>
-    `;
+      </div>
+      <button id="edit-profile-btn" class="primary-btn">Edit Profile</button>
+    </div>
+    <div class="profile-details">
+      <div class="detail-section">
+        <h4>Company Information</h4>
+        <div class="detail-item">
+          <div class="detail-label">Bank Account</div>
+          <div class="detail-value">${
+            currentCompany.banckAccountNo || "Not set"
+          }</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Bio</div>
+          <div class="detail-value">${
+            currentCompany.bio || "No bio available"
+          }</div>
+        </div>
+      </div>
+      
+      <div class="detail-section">
+        <h4>Address Information</h4>
+        <div class="detail-item">
+          <div class="detail-label">Current Address</div>
+          <div class="detail-value" data-address="true">${addressDisplay}</div>
+        </div>
+        <div class="edit-address-btn-container">
+          <button onclick="showEditAddressModal()" class="secondary-btn">Edit Address</button>
+        </div>
+      </div>
+      
+      <div class="detail-section">
+        <h4>Account Information</h4>
+        <div class="detail-item">
+          <div class="detail-label">Account Created</div>
+          <div class="detail-value">${
+            currentCompany.createdAt
+              ? formatDate(currentCompany.createdAt)
+              : "Unknown"
+          }</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Last Login</div>
+          <div class="detail-value">${
+            currentCompany.lastLoginAt
+              ? formatDate(currentCompany.lastLoginAt)
+              : "Unknown"
+          }</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Authentication Provider</div>
+          <div class="detail-value">${
+            currentCompany.authProvider || "Email"
+          }</div>
+        </div>
+      </div>
+    </div>
+  `;
 
   // Add event listeners
-  const refreshCompanyProfileBtn = document.getElementById(
-    "refresh-company-profile-btn"
-  );
-  if (refreshCompanyProfileBtn) {
-    refreshCompanyProfileBtn.addEventListener("click", () => {
-      showMessage("Refreshing company profile...", "info");
-      loadCompanyProfile();
-    });
-  }
-
-  const editCompanyProfileBtn = document.getElementById(
-    "edit-company-profile-btn"
-  );
-  if (editCompanyProfileBtn) {
-    editCompanyProfileBtn.addEventListener("click", () => {
-      showEditProfileModal();
-    });
+  const editProfileBtn = document.getElementById("edit-profile-btn");
+  if (editProfileBtn) {
+    editProfileBtn.addEventListener("click", showEditProfileModal);
   }
 
   // Load address data
   loadAddress();
+
+  // Add this at the end of the function
+  setupCompanyImageUpload();
 }
 
 // Format date for display
@@ -195,49 +166,70 @@ function formatDate(timestamp) {
 
 // Show edit profile modal
 function showEditProfileModal() {
+  if (!currentCompany) return;
+
   const modalContent = `
-        <div class="edit-profile-form">
-            <div class="form-group">
-                <label for="edit-company-name">Company Name</label>
-                <input type="text" id="edit-company-name" value="${
-                  currentCompany.name || ""
-                }">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-phone">Phone Number</label>
-                <input type="text" id="edit-company-phone" value="${
-                  currentCompany.phoneNumber || ""
-                }">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-bank">Bank Account</label>
-                <input type="text" id="edit-company-bank" value="${
-                  currentCompany.banckAccountNo || ""
-                }">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-bio">Bio</label>
-                <textarea id="edit-company-bio" rows="4">${
-                  currentCompany.bio || ""
-                }</textarea>
-            </div>
-            
-            <div class="form-footer">
-                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                <button type="button" class="primary-btn" onclick="updateCompanyProfile()">Save Changes</button>
-            </div>
+    <form id="edit-company-form">
+      <div class="form-group">
+        <label for="edit-company-name">Company Name</label>
+        <input type="text" id="edit-company-name" value="${
+          currentCompany.name || ""
+        }" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-company-phone">Phone Number</label>
+        <input type="tel" id="edit-company-phone" value="${
+          currentCompany.phoneNumber || ""
+        }">
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-company-bio">Bio</label>
+        <textarea id="edit-company-bio" rows="3">${
+          currentCompany.bio || ""
+        }</textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-company-image">Company Image</label>
+        <input type="file" id="edit-company-image" accept="image/*" class="file-input">
+        <div class="file-input-preview" id="edit-company-image-preview">
+          <img src="${
+            currentCompany.imageURL || "img/placeholder-company.jpg"
+          }" alt="Company Image" style="max-width: 100%; max-height: 150px;">
+          <span>Current image preview (Will be stored as an empty string)</span>
         </div>
-    `;
+      </div>
+      
+      <div class="form-footer">
+        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="submit" class="primary-btn">Save Changes</button>
+      </div>
+    </form>
+  `;
 
   showModal("Edit Company Profile", modalContent);
+
+  // Add event listeners
+  const form = document.getElementById("edit-company-form");
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      updateCompanyProfile();
+    });
+  }
+
+  // Set up file input preview
+  setupFileInputPreviews("edit-company-image");
 }
 
 // Update company profile
 async function updateCompanyProfile() {
+  showLoadingIndicator();
+
   try {
-    const companyName = document
-      .getElementById("edit-company-name")
-      .value.trim();
+    const name = document.getElementById("edit-company-name").value.trim();
     const phoneNumber = document
       .getElementById("edit-company-phone")
       .value.trim();
@@ -246,61 +238,47 @@ async function updateCompanyProfile() {
       .value.trim();
     const bio = document.getElementById("edit-company-bio").value.trim();
 
-    if (!companyName) {
-      showMessage("Company name cannot be empty", "error");
+    // Always use empty string for imageURL
+    const imageURL = "";
+
+    // Validate phone number
+    const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      hideLoadingIndicator();
+      showNotification(
+        "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits in total.",
+        "error"
+      );
       return;
     }
 
-    // Validate phone number format if provided
-    if (phoneNumber) {
-      const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
-      if (!phoneRegex.test(phoneNumber)) {
-        showMessage(
-          "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits long",
-          "error"
-        );
-        return;
-      }
-    }
-
-    // Show loading message
-    showMessage("Updating profile...", "info");
-
-    // Update Firestore
+    // Update company in Firestore
     await companiesRef.doc(currentCompany.id).update({
-      name: companyName,
-      phoneNumber: phoneNumber,
+      name,
+      phoneNumber,
       banckAccountNo: bankAccount,
-      bio: bio,
+      bio,
+      imageURL,
       updatedAt: getTimestamp(),
     });
 
-    // Update local company data
-    currentCompany.name = companyName;
+    // Update the currentCompany object
+    currentCompany.name = name;
     currentCompany.phoneNumber = phoneNumber;
     currentCompany.banckAccountNo = bankAccount;
     currentCompany.bio = bio;
-
-    // Update stored company data
-    setCurrentCompany(currentCompany);
-
-    // Hide modal and reload profile
-    hideModal();
-    loadCompanyProfile();
-
-    // Update company name in header
-    if (document.getElementById("company-name")) {
-      document.getElementById("company-name").textContent = companyName;
-    }
-
-    // Log activity
-    await logActivity("update", "company", currentCompany.id);
+    currentCompany.imageURL = imageURL;
 
     // Show success message
-    showMessage("Profile updated successfully", "success");
+    hideLoadingIndicator();
+    showNotification("Company profile updated successfully", "success");
+
+    // Update the UI
+    loadCompanyProfile();
   } catch (error) {
     console.error("Error updating company profile:", error);
-    showMessage(`Error updating profile: ${error.message}`, "error");
+    hideLoadingIndicator();
+    showNotification("Error updating company profile", "error");
   }
 }
 
@@ -659,14 +637,14 @@ async function updateCompanyAddress() {
       });
 
       // Update company with new addressId
-    await companiesRef.doc(currentCompany.id).update({
+      await companiesRef.doc(currentCompany.id).update({
         addressId: addressRef.id,
-      updatedAt: getTimestamp(),
-    });
+        updatedAt: getTimestamp(),
+      });
 
-    // Update local company data
+      // Update local company data
       currentCompany.addressId = addressRef.id;
-    setCurrentCompany(currentCompany);
+      setCurrentCompany(currentCompany);
     }
 
     // Hide modal and reload profile
@@ -830,3 +808,84 @@ companyProfileStyles.textContent = `
     }
 `;
 document.head.appendChild(companyProfileStyles);
+
+// Function to update profile image section
+function setupCompanyImageUpload() {
+  const changeImageBtn = document.querySelector(".change-image-btn");
+  if (changeImageBtn) {
+    changeImageBtn.addEventListener("click", () => {
+      // Create a file input element
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.style.display = "none";
+      document.body.appendChild(fileInput);
+
+      // Trigger click on the file input
+      fileInput.click();
+
+      // Handle file selection
+      fileInput.addEventListener("change", function () {
+        if (this.files && this.files[0]) {
+          const file = this.files[0];
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            // Update the profile image preview
+            const profileImage = document.querySelector("#company-image");
+            if (profileImage) {
+              profileImage.src = e.target.result;
+            }
+
+            // Show notification
+            showNotification(
+              "Image preview updated. Save changes to apply.",
+              "info"
+            );
+          };
+
+          reader.readAsDataURL(file);
+        }
+
+        // Remove the file input from the DOM
+        document.body.removeChild(fileInput);
+      });
+    });
+  }
+}
+
+// Setup file input preview functionality
+function setupFileInputPreviews(inputId) {
+  const fileInput = document.getElementById(inputId);
+  const previewDiv = document.getElementById(`${inputId}-preview`);
+
+  if (fileInput && previewDiv) {
+    fileInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        const file = this.files[0];
+
+        // Check if it's an image
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            previewDiv.innerHTML = `
+              <img src="${e.target.result}" alt="Preview" style="max-width: 100%; max-height: 150px;">
+              <span>${file.name}</span>
+            `;
+          };
+
+          reader.readAsDataURL(file);
+        } else {
+          // For non-image files (like PDFs)
+          previewDiv.innerHTML = `
+            <i class="fas fa-file-pdf"></i>
+            <span>${file.name}</span>
+          `;
+        }
+      } else {
+        previewDiv.innerHTML = `<span>No file selected</span>`;
+      }
+    });
+  }
+}
