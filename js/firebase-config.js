@@ -448,7 +448,39 @@ async function logActivity(action, entityType, entityId) {
 }
 
 // Initialize
-document.addEventListener("DOMContentLoaded", loadCurrentCompany);
+document.addEventListener("DOMContentLoaded", async function () {
+  await loadCurrentCompany();
+
+  // Ensure companies have ID fields
+  await ensureCompaniesHaveIds();
+});
+
+// Function to ensure all companies have ID fields
+async function ensureCompaniesHaveIds() {
+  try {
+    console.log("Checking company documents for missing ID fields...");
+    const snapshot = await companiesRef.get();
+    const batch = db.batch();
+    let count = 0;
+
+    snapshot.forEach((doc) => {
+      // Skip if the document already has an id field
+      if (doc.data().id) return;
+
+      count++;
+      batch.update(doc.ref, { id: doc.id });
+    });
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`Added ID field to ${count} company documents`);
+    } else {
+      console.log("All company documents already have ID fields");
+    }
+  } catch (error) {
+    console.error("Error ensuring company IDs:", error);
+  }
+}
 
 // Function to add ID field to all existing documents in a collection
 async function addIdToCollection(collectionRef) {

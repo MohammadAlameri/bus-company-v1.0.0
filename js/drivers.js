@@ -1,11 +1,68 @@
+// Initialize all required functions at the start of the file
+// Make sure we have all required helper functions
+console.log("Initializing drivers.js...");
+
+// Ensure helper functions are available
+ensureTimestampFunction();
+ensureModalFunctions();
+
+// Check if Firestore references are available
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM loaded in drivers.js");
+  // Check if Firebase and Firestore are initialized
+  if (!firebase || !firebase.firestore) {
+    console.error("Firebase or Firestore not initialized");
+    return;
+  }
+
+  // Check if collection references are available
+  if (!driversRef || !addressesRef) {
+    console.error("Firestore collection references not available");
+    return;
+  }
+
+  // Check if currentCompany is loaded
+  console.log("currentCompany:", currentCompany ? "Loaded" : "Not loaded");
+
+  // Add a listener for the "Add Driver" button
+  const addDriverBtn = document.getElementById("add-driver-btn");
+  if (addDriverBtn) {
+    console.log("Adding click listener to Add Driver button");
+    // Remove any existing listeners
+    const newBtn = addDriverBtn.cloneNode(true);
+    addDriverBtn.parentNode.replaceChild(newBtn, addDriverBtn);
+
+    // Add the event listener
+    newBtn.addEventListener("click", function () {
+      console.log("Add Driver button clicked");
+      showAddDriverModal();
+    });
+  } else {
+    console.log("Add Driver button not found in the DOM yet");
+  }
+});
+
 // Initialize drivers section
 function loadDrivers() {
-  if (!currentCompany) return;
+  console.log("Loading drivers module");
+
+  // Check if currentCompany is defined
+  if (!currentCompany) {
+    console.error("Error: currentCompany is not defined");
+    showMessage(
+      "Error: No company profile found. Please log in again.",
+      "error"
+    );
+    return;
+  }
+
+  const driversSection = document.getElementById("drivers-section");
+  if (!driversSection) {
+    console.error("Error: drivers-section element not found");
+    return;
+  }
 
   // Update drivers section content
-  const driversSection = document.getElementById("drivers-section");
-  if (!driversSection) return;
-
   driversSection.innerHTML = `
         <div class="section-header">
             <h2>Drivers Management</h2>
@@ -243,103 +300,126 @@ function filterDrivers(searchTerm) {
 
 // Show add driver modal
 function showAddDriverModal() {
+  console.log("Showing add driver modal");
   const modalContent = `
-        <form id="add-driver-form">
-            <div class="form-group">
-                <label for="driver-name">Name</label>
-                <input type="text" id="driver-name" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-email">Email</label>
-                <input type="email" id="driver-email" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-phone">Phone Number</label>
-                <input type="tel" id="driver-phone" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-gender">Gender</label>
-                <select id="driver-gender" required>
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-dob">Date of Birth</label>
-                <input type="date" id="driver-dob" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-bio">Bio</label>
-                <textarea id="driver-bio" rows="3"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-image">Profile Image</label>
-                <input type="file" id="driver-image" accept="image/*" class="file-input">
-                <div class="file-input-preview" id="driver-image-preview">
-                    <span>No image selected</span>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-license-no">License Number</label>
-                <input type="text" id="driver-license-no" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-license-url">License Document</label>
-                <input type="file" id="driver-license-url" accept="image/*,.pdf" class="file-input">
-                <div class="file-input-preview" id="driver-license-url-preview">
-                    <span>No document selected</span>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-nationality-no">Nationality ID</label>
-                <input type="text" id="driver-nationality-no">
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-nationality-url">Nationality Document</label>
-                <input type="file" id="driver-nationality-url" accept="image/*,.pdf" class="file-input">
-                <div class="file-input-preview" id="driver-nationality-url-preview">
-                    <span>No document selected</span>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-passport-no">Passport Number</label>
-                <input type="text" id="driver-passport-no">
-            </div>
-            
-            <div class="form-group">
-                <label for="driver-passport-url">Passport Document</label>
-                <input type="file" id="driver-passport-url" accept="image/*,.pdf" class="file-input">
-                <div class="file-input-preview" id="driver-passport-url-preview">
-                    <span>No document selected</span>
-                </div>
-            </div>
-            
-            <div class="form-footer">
-                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                <button type="submit" class="primary-btn">Add Driver</button>
-            </div>
-        </form>
-    `;
+    <form id="add-driver-form">
+      <div class="form-group">
+        <label for="driver-name">Name</label>
+        <input type="text" id="driver-name" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-email">Email</label>
+        <input type="email" id="driver-email" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-phone">Phone Number</label>
+        <input type="tel" id="driver-phone" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-gender">Gender</label>
+        <select id="driver-gender" required>
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-dob">Date of Birth</label>
+        <input type="date" id="driver-dob" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-bio">Bio</label>
+        <textarea id="driver-bio" rows="3"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-image">Profile Image</label>
+        <input type="file" id="driver-image" accept="image/*" class="file-input">
+        <div class="file-input-preview" id="driver-image-preview">
+          <span>No image selected</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-license-no">License Number</label>
+        <input type="text" id="driver-license-no" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-license-url">License Document</label>
+        <input type="file" id="driver-license-url" accept="image/*,.pdf" class="file-input">
+        <div class="file-input-preview" id="driver-license-url-preview">
+          <span>No document selected</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-nationality-no">Nationality ID</label>
+        <input type="text" id="driver-nationality-no">
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-nationality-url">Nationality Document</label>
+        <input type="file" id="driver-nationality-url" accept="image/*,.pdf" class="file-input">
+        <div class="file-input-preview" id="driver-nationality-url-preview">
+          <span>No document selected</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-passport-no">Passport Number</label>
+        <input type="text" id="driver-passport-no">
+      </div>
+      
+      <div class="form-group">
+        <label for="driver-passport-url">Passport Document</label>
+        <input type="file" id="driver-passport-url" accept="image/*,.pdf" class="file-input">
+        <div class="file-input-preview" id="driver-passport-url-preview">
+          <span>No document selected</span>
+        </div>
+      </div>
+      
+      <div class="form-footer">
+        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" id="add-driver-submit-btn" class="primary-btn">Add Driver</button>
+      </div>
+    </form>
+  `;
 
   showModal("Add New Driver", modalContent);
 
-  // Add form submit event listener
+  // Get the form and submit button
   const form = document.getElementById("add-driver-form");
-  if (form) {
-    form.addEventListener("submit", handleAddDriver);
+  const submitBtn = document.getElementById("add-driver-submit-btn");
+
+  if (form && submitBtn) {
+    console.log("Form and submit button found, attaching event listeners");
+
+    // Add click event to the submit button to manually trigger form submission
+    submitBtn.addEventListener("click", function () {
+      console.log("Submit button clicked, calling handleAddDriver");
+      // Create a synthetic submit event
+      const event = new Event("submit", {
+        bubbles: true,
+        cancelable: true,
+      });
+
+      // Prevent the default form submission
+      event.preventDefault = function () {
+        console.log("Prevented default form submission");
+      };
+
+      // Call the handler directly
+      handleAddDriver(event);
+    });
+  } else {
+    console.error("Form or submit button not found");
   }
 
   // Add event listeners for file inputs
@@ -589,9 +669,10 @@ function confirmDeleteDriver(driverId) {
 // Handle add driver form submission
 async function handleAddDriver(e) {
   e.preventDefault();
-  showLoadingIndicator();
+  console.log("handleAddDriver called");
 
   try {
+    console.log("Starting to collect form data");
     const name = document.getElementById("driver-name").value;
     const email = document.getElementById("driver-email").value;
     const phone = document.getElementById("driver-phone").value;
@@ -609,18 +690,23 @@ async function handleAddDriver(e) {
     const passportNo = document.getElementById("driver-passport-no").value;
     const passportURL = ""; // Empty string instead of the actual file
 
+    console.log("Form data collected", { name, email, phone, gender, dob });
+
     // Validate phone number format
     const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
     if (!phoneRegex.test(phone)) {
-      hideLoadingIndicator();
-      showNotification(
+      console.log("Phone validation failed", phone);
+      showMessage(
         "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits in total.",
         "error"
       );
       return;
     }
 
+    console.log("Phone validation passed");
+
     // Create address
+    console.log("Creating address document");
     const addressData = {
       latLon: null,
       streetName: "",
@@ -632,14 +718,18 @@ async function handleAddDriver(e) {
       createdAt: getTimestamp(),
     };
 
+    console.log("Adding address to Firestore");
     const addressRef = await addressesRef.add(addressData);
+    console.log("Address added with ID:", addressRef.id);
 
     // Add the id field to the address document
     await addressesRef.doc(addressRef.id).update({
       id: addressRef.id,
     });
+    console.log("Address updated with ID field");
 
     // Create driver
+    console.log("Creating driver document");
     const driverData = {
       id: null, // Will be set after document creation
       name,
@@ -656,26 +746,41 @@ async function handleAddDriver(e) {
       passportNo: passportNo,
       passportURL,
       addressId: addressRef.id,
-      companyId: currentCompany.id,
+      companyId: currentCompany ? currentCompany.id : null,
       createdAt: getTimestamp(),
       lastLoginAt: getTimestamp(),
       authProvider: "company_created",
     };
 
+    if (!currentCompany) {
+      console.error("Error: currentCompany is null");
+      showMessage(
+        "Error: No company profile found. Please log in again.",
+        "error"
+      );
+      return;
+    }
+
+    console.log("Adding driver to Firestore");
     const newDriverRef = await driversRef.add(driverData);
+    console.log("Driver added with ID:", newDriverRef.id);
 
     // Update the driver document with its ID
     await driversRef.doc(newDriverRef.id).update({
       id: newDriverRef.id,
     });
+    console.log("Driver updated with ID field");
 
     // Log activity
     await logActivity("create", "driver", newDriverRef.id);
+    console.log("Activity logged");
 
     showMessage("Driver added successfully", "success");
     hideModal();
+    console.log("Modal hidden");
 
     // Refresh drivers list
+    console.log("Refreshing drivers list");
     fetchDrivers();
   } catch (error) {
     console.error("Error adding driver:", error);
@@ -885,3 +990,160 @@ driverStyles.textContent = `
     }
 `;
 document.head.appendChild(driverStyles);
+
+// Add these functions if they don't exist
+function showLoadingIndicator() {
+  console.log("Loading indicator shown");
+  // Create loading indicator if it doesn't exist
+  let loader = document.getElementById("loading-indicator");
+  if (!loader) {
+    loader = document.createElement("div");
+    loader.id = "loading-indicator";
+    loader.className = "loading-indicator";
+    loader.innerHTML = '<div class="spinner"></div>';
+    document.body.appendChild(loader);
+  }
+  loader.style.display = "flex";
+}
+
+function hideLoadingIndicator() {
+  console.log("Loading indicator hidden");
+  const loader = document.getElementById("loading-indicator");
+  if (loader) {
+    loader.style.display = "none";
+  }
+}
+
+// Add loading indicator styles
+const loaderStyles = document.createElement("style");
+loaderStyles.textContent = `
+  .loading-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(loaderStyles);
+
+// Function to display messages if not already defined
+function showMessage(message, type = "info") {
+  console.log(`Showing message: ${message} (${type})`);
+
+  // Create message element
+  const messageEl = document.createElement("div");
+  messageEl.className = `message ${type}`;
+  messageEl.textContent = message;
+
+  // Add to body
+  document.body.appendChild(messageEl);
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    messageEl.classList.add("hiding");
+    setTimeout(() => {
+      document.body.removeChild(messageEl);
+    }, 500);
+  }, 3000);
+}
+
+// Function to show notification if not already defined
+function showNotification(message, type = "info") {
+  console.log(`Showing notification: ${message} (${type})`);
+  showMessage(message, type);
+}
+
+// Helper functions
+// Fallback for getTimestamp if it's not defined in firebase-config.js
+function ensureTimestampFunction() {
+  // Check if getTimestamp is already defined
+  if (typeof getTimestamp === "function") {
+    console.log("Using existing getTimestamp function");
+    return;
+  }
+
+  console.log("Creating fallback getTimestamp function");
+  // Define a fallback getTimestamp function
+  window.getTimestamp = function () {
+    console.log("Using fallback getTimestamp");
+    return firebase.firestore.FieldValue.serverTimestamp();
+  };
+}
+
+// Call this at the beginning of the file, before any function that needs getTimestamp
+ensureTimestampFunction();
+
+// Modal functions if not defined elsewhere
+// Check if showModal and hideModal exist and create them if not
+function ensureModalFunctions() {
+  if (typeof showModal !== "function") {
+    console.log("Creating showModal function");
+    window.showModal = function (title, content) {
+      console.log(`Showing modal: ${title}`);
+      const modal = document.getElementById("modal");
+      if (!modal) {
+        console.error("Modal element not found");
+        return;
+      }
+
+      const modalTitle = document.createElement("h3");
+      modalTitle.className = "modal-title";
+      modalTitle.textContent = title;
+
+      const modalBody = document.getElementById("modal-body");
+      if (!modalBody) {
+        console.error("Modal body element not found");
+        return;
+      }
+
+      modalBody.innerHTML = "";
+      modalBody.appendChild(modalTitle);
+      modalBody.insertAdjacentHTML("beforeend", content);
+
+      modal.classList.remove("hidden");
+
+      // Add event listener to close button
+      const closeBtn = modal.querySelector(".close-btn");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", hideModal);
+      }
+    };
+  }
+
+  if (typeof hideModal !== "function") {
+    console.log("Creating hideModal function");
+    window.hideModal = function () {
+      console.log("Hiding modal");
+      const modal = document.getElementById("modal");
+      if (!modal) {
+        console.error("Modal element not found");
+        return;
+      }
+
+      modal.classList.add("hidden");
+    };
+  }
+}
+
+// Call this at the beginning of the file
+ensureModalFunctions();

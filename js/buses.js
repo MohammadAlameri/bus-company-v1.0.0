@@ -21,9 +21,9 @@ function loadBuses() {
             <div class="filter-controls">
                 <select id="bus-filter">
                     <option value="all">All Types</option>
-                    <option value="Bus">Bus</option>
-                    <option value="Shuttle">Shuttle</option>
-                    <option value="Minibus">Minibus</option>
+                    <option value="bus">Bus</option>
+                    <option value="car">Car</option>
+                    <option value="mini bus">Mini Bus</option>
                 </select>
                 <select id="transport-type-filter">
                     <option value="all">All Transport Types</option>
@@ -144,13 +144,23 @@ async function fetchBuses() {
 
     // Get all buses and sort them by creation time manually
     const buses = [];
+    const structurePromises = [];
+
     snapshot.forEach((doc) => {
       const busData = {
         id: doc.id,
         ...doc.data(),
       };
+
+      // Ensure the bus has all required fields according to the Vehicle structure
+      const structurePromise = ensureBusStructure(busData, doc.id);
+      structurePromises.push(structurePromise);
+
       buses.push(busData);
     });
+
+    // Wait for all structure updates to complete
+    await Promise.all(structurePromises);
 
     // Sort by createdAt (descending)
     buses.sort((a, b) => {
@@ -387,15 +397,15 @@ async function showAddBusModal() {
                     <label for="bus-type">Vehicle Type</label>
                     <select id="bus-type" required>
                         <option value="">Select Vehicle Type</option>
-                        <option value="Bus">Bus</option>
-                        <option value="Shuttle">Shuttle</option>
-                        <option value="Minibus">Minibus</option>
+                        <option value="bus">Bus</option>
+                        <option value="car">Car</option>
+                        <option value="mini bus">Mini Bus</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label for="bus-transport-type">Transport Type</label>
-                    <select id="bus-transport-type">
+                    <select id="bus-transport-type" required>
                         <option value="Economy">Economy</option>
                         <option value="VIP">VIP</option>
                     </select>
@@ -524,15 +534,15 @@ async function showEditBusModal(busId) {
                     <label for="edit-bus-type">Vehicle Type</label>
                     <select id="edit-bus-type" required>
                         <option value="">Select Vehicle Type</option>
-                        <option value="Bus" ${
-                          bus.vehicleType === "Bus" ? "selected" : ""
+                        <option value="bus" ${
+                          bus.vehicleType === "bus" ? "selected" : ""
                         }>Bus</option>
-                        <option value="Shuttle" ${
-                          bus.vehicleType === "Shuttle" ? "selected" : ""
-                        }>Shuttle</option>
-                        <option value="Minibus" ${
-                          bus.vehicleType === "Minibus" ? "selected" : ""
-                        }>Minibus</option>
+                        <option value="car" ${
+                          bus.vehicleType === "car" ? "selected" : ""
+                        }>Car</option>
+                        <option value="mini bus" ${
+                          bus.vehicleType === "mini bus" ? "selected" : ""
+                        }>Mini Bus</option>
                     </select>
                 </div>
                 
@@ -799,6 +809,11 @@ async function handleEditBus(e) {
       // Create new address
       const addressRef = await addressesRef.add(addressData);
       currentAddressId = addressRef.id;
+
+      // Add the id field to the address document
+      await addressesRef.doc(currentAddressId).update({
+        id: currentAddressId,
+      });
     } else {
       // Update existing address
       await addressesRef.doc(currentAddressId).update(addressData);
@@ -812,9 +827,18 @@ async function handleEditBus(e) {
       driverId: driverInput && driverInput.value ? driverInput.value : "",
       countOfSeats: parseInt(seatsInput.value) || 0,
       addressId: currentAddressId,
+      updatedAt: getTimestamp(),
     };
 
     await vehiclesRef.doc(busId).update(busData);
+
+    // Check if the id field exists, add it if it doesn't
+    const busDoc = await vehiclesRef.doc(busId).get();
+    if (busDoc.exists && !busDoc.data().id) {
+      await vehiclesRef.doc(busId).update({
+        id: busId,
+      });
+    }
 
     // Log to console instead of writing to activityLogs
     console.log(
@@ -976,3 +1000,74 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBuses();
   }
 });
+
+// Function to ensure bus data has the correct structure
+async function ensureBusStructure(busData, docId) {
+  const updates = {};
+  let needsUpdate = false;
+
+  // Check for required fields and set default values if missing
+  if (!busData.id) {
+    updates.id = docId;
+    needsUpdate = true;
+  }
+
+  if (
+    !busData.vehicleType ||
+    (busData.vehicleType !== "bus" &&
+      busData.vehicleType !== "car" &&
+      busData.vehicleType !== "mini bus")
+  ) {
+    // Convert old values to new format if needed
+    if (busData.vehicleType === "Bus") {
+      updates.vehicleType = "bus";
+      needsUpdate = true;
+    } else if (
+      busData.vehicleType === "Shuttle" ||
+      busData.vehicleType === "Minibus"
+    ) {
+      updates.vehicleType = "mini bus";
+      needsUpdate = true;
+    } else if (!busData.vehicleType) {
+      updates.vehicleType = "bus"; // Default value
+      needsUpdate = true;
+    }
+  }
+
+  if (
+    !busData.typeOfTransportation ||
+    (busData.typeOfTransportation !== "Economy" &&
+      busData.typeOfTransportation !== "VIP")
+  ) {
+    updates.typeOfTransportation = "Economy"; // Default value
+    needsUpdate = true;
+  }
+
+  if (busData.driverId === undefined) {
+    updates.driverId = "";
+    needsUpdate = true;
+  }
+
+  if (busData.countOfSeats === undefined) {
+    updates.countOfSeats = 0;
+    needsUpdate = true;
+  }
+
+  if (busData.companyId === undefined && currentCompany) {
+    updates.companyId = currentCompany.id;
+    needsUpdate = true;
+  }
+
+  // Apply updates if needed
+  if (needsUpdate) {
+    try {
+      console.log(`Updating bus ${docId} to match required structure`, updates);
+      await vehiclesRef.doc(docId).update(updates);
+
+      // Update the local data
+      Object.assign(busData, updates);
+    } catch (error) {
+      console.error(`Error updating bus structure for ${docId}:`, error);
+    }
+  }
+}

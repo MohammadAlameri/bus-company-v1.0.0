@@ -401,16 +401,6 @@ async function showAddTripModal() {
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label for="trip-transport-type">Transportation Type</label>
-                    <select id="trip-transport-type" required>
-                        <option value="">Select Transportation Type</option>
-                        <option value="Bus">Bus</option>
-                        <option value="Shuttle">Shuttle</option>
-                        <option value="Minibus">Minibus</option>
-                    </select>
-                </div>
-                
                 <div class="form-row">
                     <div class="form-group half">
                         <label for="trip-price">Price</label>
@@ -420,9 +410,9 @@ async function showAddTripModal() {
                     <div class="form-group half">
                         <label for="trip-currency">Currency</label>
                         <select id="trip-currency" required>
+                            <option value="YER">YER</option>
+                            <option value="SAR">SAR</option>
                             <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="GBP">GBP</option>
                         </select>
                     </div>
                 </div>
@@ -557,26 +547,6 @@ async function showEditTripModal(tripId) {
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label for="edit-trip-transport-type">Transportation Type</label>
-                    <select id="edit-trip-transport-type" required>
-                        <option value="">Select Transportation Type</option>
-                        <option value="Bus" ${
-                          trip.typeOfTransportation === "Bus" ? "selected" : ""
-                        }>Bus</option>
-                        <option value="Shuttle" ${
-                          trip.typeOfTransportation === "Shuttle"
-                            ? "selected"
-                            : ""
-                        }>Shuttle</option>
-                        <option value="Minibus" ${
-                          trip.typeOfTransportation === "Minibus"
-                            ? "selected"
-                            : ""
-                        }>Minibus</option>
-                    </select>
-                </div>
-                
                 <div class="form-row">
                     <div class="form-group half">
                         <label for="edit-trip-price">Price</label>
@@ -588,15 +558,15 @@ async function showEditTripModal(tripId) {
                     <div class="form-group half">
                         <label for="edit-trip-currency">Currency</label>
                         <select id="edit-trip-currency" required>
+                            <option value="YER" ${
+                              trip.currency === "YER" ? "selected" : ""
+                            }>YER</option>
+                            <option value="SAR" ${
+                              trip.currency === "SAR" ? "selected" : ""
+                            }>SAR</option>
                             <option value="USD" ${
                               trip.currency === "USD" ? "selected" : ""
                             }>USD</option>
-                            <option value="EUR" ${
-                              trip.currency === "EUR" ? "selected" : ""
-                            }>EUR</option>
-                            <option value="GBP" ${
-                              trip.currency === "GBP" ? "selected" : ""
-                            }>GBP</option>
                         </select>
                     </div>
                 </div>
@@ -760,9 +730,6 @@ async function handleEditTrip(e) {
   const arrivalInput = document.getElementById("edit-trip-arrival");
   const waitingInput = document.getElementById("edit-trip-waiting");
   const routeTypeInput = document.getElementById("edit-trip-route-type");
-  const transportTypeInput = document.getElementById(
-    "edit-trip-transport-type"
-  );
   const priceInput = document.getElementById("edit-trip-price");
   const currencyInput = document.getElementById("edit-trip-currency");
 
@@ -774,7 +741,6 @@ async function handleEditTrip(e) {
     !departureInput ||
     !arrivalInput ||
     !routeTypeInput ||
-    !transportTypeInput ||
     !priceInput ||
     !currencyInput
   ) {
@@ -801,7 +767,6 @@ async function handleEditTrip(e) {
         minute: remainingMinutes,
       },
       routeType: routeTypeInput.value,
-      typeOfTransportation: transportTypeInput.value,
       price: parseFloat(priceInput.value),
       currency: currencyInput.value,
       updatedAt: getTimestamp(),

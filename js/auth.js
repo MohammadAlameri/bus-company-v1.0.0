@@ -806,6 +806,14 @@ async function fetchCompanyProfile(userId) {
         ...doc.data(),
       };
 
+      // Ensure id field exists in the document
+      if (!doc.data().id) {
+        await companiesRef.doc(userId).update({
+          id: userId,
+        });
+        console.log("Added missing id field to company document:", userId);
+      }
+
       // Update last login
       await companiesRef.doc(userId).update({
         lastLoginAt: getTimestamp(),
