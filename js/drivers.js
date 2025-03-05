@@ -214,14 +214,42 @@ function addDriverToTable(driver) {
   // Calculate age
   let age = "";
   if (driver.dateOfBirth) {
-    const birthDate = driver.dateOfBirth.toDate
-      ? driver.dateOfBirth.toDate()
-      : new Date(driver.dateOfBirth);
-    const today = new Date();
-    age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+    try {
+      // Handle different date formats
+      let birthDate;
+      if (driver.dateOfBirth.toDate) {
+        // Firestore timestamp
+        birthDate = driver.dateOfBirth.toDate();
+      } else if (driver.dateOfBirth instanceof Date) {
+        // JavaScript Date object
+        birthDate = driver.dateOfBirth;
+      } else if (typeof driver.dateOfBirth === "string") {
+        // String date
+        birthDate = new Date(driver.dateOfBirth);
+      } else {
+        // If it's another format, try to convert it
+        birthDate = new Date(driver.dateOfBirth);
+      }
+
+      if (isNaN(birthDate.getTime())) {
+        // Invalid date
+        console.warn(
+          `Invalid date of birth for driver ${driver.id}:`,
+          driver.dateOfBirth
+        );
+        age = "-";
+      } else {
+        // Calculate age
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
+    } catch (error) {
+      console.error(`Error calculating age for driver ${driver.id}:`, error);
+      age = "-";
     }
   }
 
@@ -705,6 +733,10 @@ async function handleAddDriver(e) {
 
     console.log("Phone validation passed");
 
+    // Convert date of birth to Date object
+    const dateOfBirth = dob ? new Date(dob) : null;
+    console.log("Date of birth converted to Date object:", dateOfBirth);
+
     // Create address
     console.log("Creating address document");
     const addressData = {
@@ -736,7 +768,7 @@ async function handleAddDriver(e) {
       email,
       phoneNumber: phone,
       gender,
-      dateOfBirth: dob,
+      dateOfBirth: dateOfBirth,
       bio,
       imageURL,
       licenseNo: licenseNo,
@@ -823,13 +855,17 @@ async function handleEditDriver(e) {
       return;
     }
 
+    // Convert date of birth to Date object
+    const dateOfBirth = dob ? new Date(dob) : null;
+    console.log("Date of birth converted to Date object:", dateOfBirth);
+
     // Update driver
     const driverData = {
       name,
       email,
       phoneNumber: phone,
       gender,
-      dateOfBirth: dob,
+      dateOfBirth: dateOfBirth,
       bio,
       imageURL,
       licenseNo: licenseNo,

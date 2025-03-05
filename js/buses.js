@@ -1,13 +1,226 @@
+// Check if getTimestamp is defined
+if (typeof getTimestamp !== "function") {
+  console.error(
+    "getTimestamp function is not defined. Make sure firebase-config.js is loaded before buses.js"
+  );
+
+  // Define a fallback getTimestamp function
+  window.getTimestamp = function () {
+    console.log("Using fallback getTimestamp function");
+    return firebase.firestore.Timestamp.now();
+  };
+}
+
+// Check if db is defined
+if (typeof db === "undefined") {
+  console.error(
+    "Firestore db is not defined. Make sure firebase-config.js is loaded before buses.js"
+  );
+
+  // Try to initialize db if firebase is available
+  if (typeof firebase !== "undefined" && firebase.firestore) {
+    console.log("Creating fallback db instance");
+    window.db = firebase.firestore();
+
+    // Set timestamp settings
+    window.db.settings({
+      timestampsInSnapshots: true,
+    });
+  } else {
+    console.error(
+      "Firebase is not available. Cannot create fallback db instance."
+    );
+    // Show error message to user
+    setTimeout(() => {
+      showMessage(
+        "Firebase database is not available. Please refresh the page.",
+        "error"
+      );
+    }, 1000);
+  }
+}
+
+// Check if createConverter is defined
+if (typeof createConverter !== "function") {
+  console.error(
+    "createConverter function is not defined. Make sure firebase-config.js is loaded before buses.js"
+  );
+
+  // Define a fallback createConverter function
+  window.createConverter = function (toFirestore, fromFirestore) {
+    return {
+      toFirestore: function (modelObject) {
+        return toFirestore(modelObject);
+      },
+      fromFirestore: function (snapshot, options) {
+        const data = snapshot.data(options);
+        return fromFirestore(data);
+      },
+    };
+  };
+}
+
+// Check if the converters are defined
+if (
+  typeof vehicleConverter === "undefined" ||
+  typeof driverConverter === "undefined" ||
+  typeof addressConverter === "undefined"
+) {
+  console.error(
+    "Required converters are not defined. Make sure firebase-config.js is loaded before buses.js"
+  );
+
+  // Define fallback converters if needed
+  if (typeof createConverter === "function") {
+    console.log("Creating fallback converters");
+
+    if (typeof vehicleConverter === "undefined") {
+      window.vehicleConverter = createConverter(
+        (vehicle) => {
+          const { id, ...rest } = vehicle;
+          return { ...rest };
+        },
+        (data) => ({
+          id: data.id,
+          driverId: data.driverId || "",
+          vehicleNo: data.vehicleNo || "",
+          addressId: data.addressId || "",
+          vehicleType: data.vehicleType || "",
+          typeOfTransportation: data.typeOfTransportation || "",
+          companyId: data.companyId || "",
+          countOfSeats: data.countOfSeats || 0,
+        })
+      );
+    }
+
+    if (typeof driverConverter === "undefined") {
+      window.driverConverter = createConverter(
+        (driver) => {
+          const { id, ...rest } = driver;
+          return { ...rest };
+        },
+        (data) => ({
+          id: data.id,
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          companyId: data.companyId || "",
+        })
+      );
+    }
+
+    if (typeof addressConverter === "undefined") {
+      window.addressConverter = createConverter(
+        (address) => {
+          const { id, ...rest } = address;
+          return { ...rest };
+        },
+        (data) => ({
+          id: data.id,
+          city: data.city || "",
+          streetName: data.streetName || "",
+          streetNumber: data.streetNumber || "",
+          companyId: data.companyId || "",
+        })
+      );
+    }
+  }
+}
+
 const companiesRef = db.collection("companies").withConverter(companyConverter);
 
+// Check if vehiclesRef is defined, if not, define it
+if (typeof vehiclesRef === "undefined") {
+  console.log("Creating vehiclesRef as it was undefined");
+  window.vehiclesRef = db
+    .collection("vehicles")
+    .withConverter(vehicleConverter);
+}
+
+// Check if driversRef is defined, if not, define it
+if (typeof driversRef === "undefined") {
+  console.log("Creating driversRef as it was undefined");
+  window.driversRef = db.collection("drivers").withConverter(driverConverter);
+}
+
+// Check if addressesRef is defined, if not, define it
+if (typeof addressesRef === "undefined") {
+  console.log("Creating addressesRef as it was undefined");
+  window.addressesRef = db
+    .collection("addresses")
+    .withConverter(addressConverter);
+}
+
+// Check if currentCompany is defined
+if (typeof currentCompany === "undefined") {
+  console.error(
+    "currentCompany is not defined. Make sure auth.js is loaded before buses.js"
+  );
+
+  // Try to get currentCompany from localStorage
+  try {
+    const companyData = localStorage.getItem("currentCompany");
+    if (companyData) {
+      window.currentCompany = JSON.parse(companyData);
+      console.log(
+        "Restored currentCompany from localStorage:",
+        window.currentCompany
+      );
+    } else {
+      console.error("No company data found in localStorage");
+      // Show error message to user
+      setTimeout(() => {
+        if (typeof showMessage === "function") {
+          showMessage(
+            "Company information not available. Please try logging out and back in.",
+            "error"
+          );
+        }
+      }, 1000);
+    }
+  } catch (error) {
+    console.error("Error restoring company data from localStorage:", error);
+  }
+}
+
 function loadBuses() {
-  if (!currentCompany) return;
+  try {
+    if (!currentCompany) {
+      console.error("Current company information not available in loadBuses");
 
-  // Update buses section content
-  const busesSection = document.getElementById("buses-section");
-  if (!busesSection) return;
+      // Show error message
+      if (typeof showMessage === "function") {
+        showMessage(
+          "Company information not available. Please try logging out and back in.",
+          "error"
+        );
+      }
 
-  busesSection.innerHTML = `
+      // Update buses section with error
+      const busesSection = document.getElementById("buses-section");
+      if (busesSection) {
+        busesSection.innerHTML = `
+          <div class="section-header">
+            <h2>Buses Management</h2>
+          </div>
+          <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>Error: Company information not available. Please try logging out and back in.</p>
+          </div>
+        `;
+      }
+
+      return;
+    }
+
+    // Update buses section content
+    const busesSection = document.getElementById("buses-section");
+    if (!busesSection) {
+      console.error("Buses section element not found");
+      return;
+    }
+
+    busesSection.innerHTML = `
         <div class="section-header">
             <h2>Buses Management</h2>
             <button id="add-bus-btn" class="primary-btn">Add Bus</button>
@@ -55,52 +268,66 @@ function loadBuses() {
         </div>
     `;
 
-  // Add event listeners
-  const addBusBtn = document.getElementById("add-bus-btn");
-  if (addBusBtn) {
-    addBusBtn.addEventListener("click", showAddBusModal);
-  }
+    // Add event listeners
+    const addBusBtn = document.getElementById("add-bus-btn");
+    if (addBusBtn) {
+      addBusBtn.addEventListener("click", showAddBusModal);
+    }
 
-  const busSearch = document.getElementById("bus-search");
-  if (busSearch) {
-    busSearch.addEventListener("input", () => {
-      const searchTerm = busSearch.value.toLowerCase();
-      const filterValue = document.getElementById("bus-filter").value;
-      const transportTypeValue = document.getElementById(
-        "transport-type-filter"
-      ).value;
-      filterBuses(searchTerm, filterValue, transportTypeValue);
-    });
-  }
+    const busSearch = document.getElementById("bus-search");
+    if (busSearch) {
+      busSearch.addEventListener("input", () => {
+        const searchTerm = busSearch.value.toLowerCase();
+        const filterValue = document.getElementById("bus-filter").value;
+        const transportTypeValue = document.getElementById(
+          "transport-type-filter"
+        ).value;
+        filterBuses(searchTerm, filterValue, transportTypeValue);
+      });
+    }
 
-  const busFilter = document.getElementById("bus-filter");
-  if (busFilter) {
-    busFilter.addEventListener("change", () => {
-      const searchTerm = document
-        .getElementById("bus-search")
-        .value.toLowerCase();
-      const filterValue = busFilter.value;
-      const transportTypeValue = document.getElementById(
-        "transport-type-filter"
-      ).value;
-      filterBuses(searchTerm, filterValue, transportTypeValue);
-    });
-  }
+    const busFilter = document.getElementById("bus-filter");
+    if (busFilter) {
+      busFilter.addEventListener("change", () => {
+        const searchTerm = document
+          .getElementById("bus-search")
+          .value.toLowerCase();
+        const filterValue = busFilter.value;
+        const transportTypeValue = document.getElementById(
+          "transport-type-filter"
+        ).value;
+        filterBuses(searchTerm, filterValue, transportTypeValue);
+      });
+    }
 
-  const transportTypeFilter = document.getElementById("transport-type-filter");
-  if (transportTypeFilter) {
-    transportTypeFilter.addEventListener("change", () => {
-      const searchTerm = document
-        .getElementById("bus-search")
-        .value.toLowerCase();
-      const filterValue = document.getElementById("bus-filter").value;
-      const transportTypeValue = transportTypeFilter.value;
-      filterBuses(searchTerm, filterValue, transportTypeValue);
-    });
-  }
+    const transportTypeFilter = document.getElementById(
+      "transport-type-filter"
+    );
+    if (transportTypeFilter) {
+      transportTypeFilter.addEventListener("change", () => {
+        const searchTerm = document
+          .getElementById("bus-search")
+          .value.toLowerCase();
+        const filterValue = document.getElementById("bus-filter").value;
+        const transportTypeValue = transportTypeFilter.value;
+        filterBuses(searchTerm, filterValue, transportTypeValue);
+      });
+    }
 
-  // Fetch buses
-  fetchBuses();
+    // Fetch buses
+    fetchBuses();
+  } catch (error) {
+    console.error("Error loading buses:", error);
+
+    const busesTableBody = document.getElementById("buses-table-body");
+    if (busesTableBody) {
+      busesTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center;">Error loading bus data: ${error.message}</td>
+                </tr>
+            `;
+    }
+  }
 }
 
 // Fetch buses
@@ -891,115 +1118,190 @@ async function deleteBus(busId) {
   }
 }
 
-// Show modal
-function showModal(title, content) {
-  // Create modal if it doesn't exist
-  let modal = document.getElementById("modal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "modal";
-    modal.className = "modal";
-    document.body.appendChild(modal);
-  }
+// Check if showModal and hideModal are defined
+if (typeof showModal !== "function") {
+  console.error(
+    "showModal function is not defined. Make sure dashboard.js is loaded before buses.js"
+  );
 
-  // Set modal content
-  modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>${title}</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                ${content}
-            </div>
-        </div>
+  // Define a fallback showModal function
+  window.showModal = function (title, content) {
+    console.log("Using fallback showModal function");
+    const modal = document.getElementById("modal");
+    const modalTitle =
+      document.querySelector(".modal-content h2") ||
+      document.createElement("h2");
+    const modalBody = document.getElementById("modal-body");
+
+    if (!modal || !modalBody) {
+      console.error("Modal elements not found in the DOM");
+      return;
+    }
+
+    // Set modal title
+    modalTitle.textContent = title;
+    if (!modalTitle.parentNode) {
+      const closeBtn = document.querySelector(".modal-content .close-btn");
+      if (closeBtn) {
+        closeBtn.parentNode.insertBefore(modalTitle, closeBtn.nextSibling);
+      }
+    }
+
+    // Set modal content
+    modalBody.innerHTML = content;
+
+    // Show modal
+    modal.classList.remove("hidden");
+
+    // Add event listener to close button
+    const closeBtn = document.querySelector(".modal-content .close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        if (typeof hideModal === "function") {
+          hideModal();
+        } else {
+          modal.classList.add("hidden");
+        }
+      });
+    }
+  };
+}
+
+if (typeof hideModal !== "function") {
+  console.error(
+    "hideModal function is not defined. Make sure dashboard.js is loaded before buses.js"
+  );
+
+  // Define a fallback hideModal function
+  window.hideModal = function () {
+    console.log("Using fallback hideModal function");
+    const modal = document.getElementById("modal");
+    if (modal) {
+      modal.classList.add("hidden");
+    }
+  };
+}
+
+// Check if showMessage is defined
+if (typeof showMessage !== "function") {
+  console.error(
+    "showMessage function is not defined. Make sure dashboard.js is loaded before buses.js"
+  );
+
+  // Define a fallback showMessage function
+  window.showMessage = function (message, type = "info") {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+
+    // Create message container if it doesn't exist
+    let messageContainer = document.getElementById("message-container");
+    if (!messageContainer) {
+      messageContainer = document.createElement("div");
+      messageContainer.id = "message-container";
+      messageContainer.className = "message-container";
+      document.body.appendChild(messageContainer);
+    }
+
+    // Create message element
+    const messageElement = document.createElement("div");
+    messageElement.className = `message ${type}`;
+
+    // Get icon based on message type
+    let icon = "fa-info-circle";
+    if (type === "success") icon = "fa-check-circle";
+    if (type === "error") icon = "fa-exclamation-circle";
+    if (type === "warning") icon = "fa-exclamation-triangle";
+
+    messageElement.innerHTML = `
+      <div class="message-content">
+        <i class="fas ${icon}"></i>
+        <span>${message}</span>
+      </div>
+      <button class="message-close">&times;</button>
     `;
 
-  // Show modal
-  modal.style.display = "flex";
+    // Add to container
+    messageContainer.appendChild(messageElement);
 
-  // Add event listener to close button
-  const closeBtn = modal.querySelector(".close-btn");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", hideModal);
-  }
-
-  // Close modal when clicking outside
-  window.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      hideModal();
+    // Add event listener to close button
+    const closeBtn = messageElement.querySelector(".message-close");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        messageElement.remove();
+      });
     }
-  });
-}
 
-// Hide modal
-function hideModal() {
-  const modal = document.getElementById("modal");
-  if (modal) {
-    modal.style.display = "none";
-  }
-}
-
-// Show message
-function showMessage(message, type = "info") {
-  // Create message container if it doesn't exist
-  let messageContainer = document.getElementById("message-container");
-  if (!messageContainer) {
-    messageContainer = document.createElement("div");
-    messageContainer.id = "message-container";
-    document.body.appendChild(messageContainer);
-  }
-
-  // Create message element
-  const messageElement = document.createElement("div");
-  messageElement.className = `message ${type}`;
-  messageElement.innerHTML = `
-        <div class="message-content">
-            <i class="fas ${getMessageIcon(type)}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="message-close">&times;</button>
-    `;
-
-  // Add to container
-  messageContainer.appendChild(messageElement);
-
-  // Add event listener to close button
-  const closeBtn = messageElement.querySelector(".message-close");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      messageElement.remove();
-    });
-  }
-
-  // Auto remove after 5 seconds
-  setTimeout(() => {
-    if (messageElement.parentNode) {
-      messageElement.remove();
-    }
-  }, 5000);
-}
-
-// Get message icon
-function getMessageIcon(type) {
-  switch (type) {
-    case "success":
-      return "fa-check-circle";
-    case "error":
-      return "fa-exclamation-circle";
-    case "warning":
-      return "fa-exclamation-triangle";
-    default:
-      return "fa-info-circle";
-  }
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      if (messageElement.parentNode) {
+        messageElement.remove();
+      }
+    }, 5000);
+  };
 }
 
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
-  if (currentCompany) {
-    loadBuses();
+  console.log("Buses.js: DOM content loaded");
+
+  // Check if we're on the dashboard page
+  const busesSection = document.getElementById("buses-section");
+  if (busesSection) {
+    console.log("Buses section found in DOM");
+
+    // Check if currentCompany is available
+    if (currentCompany) {
+      console.log("Current company available, loading buses");
+      loadBuses();
+    } else {
+      console.error("Current company not available on DOMContentLoaded");
+
+      // Try to get company from localStorage
+      try {
+        const companyData = localStorage.getItem("currentCompany");
+        if (companyData) {
+          window.currentCompany = JSON.parse(companyData);
+          console.log(
+            "Restored currentCompany from localStorage:",
+            window.currentCompany
+          );
+          loadBuses();
+        }
+      } catch (error) {
+        console.error("Error restoring company data from localStorage:", error);
+      }
+    }
+  } else {
+    console.log("Buses section not found in DOM, might be on a different page");
   }
 });
+
+// Also check if the document is already loaded
+if (
+  document.readyState === "complete" ||
+  document.readyState === "interactive"
+) {
+  console.log("Document already loaded, checking buses section");
+
+  // Check if we're on the dashboard page with the buses section visible
+  const busesSection = document.getElementById("buses-section");
+  const dashboardContent = document.querySelector(".dashboard-content");
+
+  if (
+    busesSection &&
+    dashboardContent &&
+    !busesSection.classList.contains("hidden")
+  ) {
+    console.log("Buses section is visible, loading buses");
+
+    // Check if currentCompany is available
+    if (currentCompany) {
+      console.log("Current company available, loading buses");
+      loadBuses();
+    } else {
+      console.error("Current company not available on document ready check");
+    }
+  }
+}
 
 // Function to ensure bus data has the correct structure
 async function ensureBusStructure(busData, docId) {
