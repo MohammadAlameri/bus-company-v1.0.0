@@ -437,21 +437,14 @@ function getTimestamp() {
   return firebase.firestore.FieldValue.serverTimestamp();
 }
 
-// Add activity log
+// Add activity log (no-op function - doesn't write to Firebase)
 async function logActivity(action, entityType, entityId) {
   if (!currentCompany) return;
 
-  try {
-    await db.collection("activityLogs").add({
-      companyId: currentCompany.id,
-      action,
-      entityType,
-      entityId,
-      timestamp: getTimestamp(),
-    });
-  } catch (error) {
-    console.error("Error logging activity:", error);
-  }
+  // Log to console instead of writing to Firebase
+  console.log(
+    `Activity: ${action} ${entityType} ${entityId} by company ${currentCompany.id}`
+  );
 }
 
 // Initialize

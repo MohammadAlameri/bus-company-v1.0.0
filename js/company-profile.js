@@ -2,6 +2,51 @@
 function loadCompanyProfile() {
   if (!currentCompany) return;
 
+  // Fetch address data if addressId exists
+  let addressDisplay = "No address information available";
+
+  const loadAddress = async () => {
+    if (currentCompany.addressId) {
+      try {
+        const addressDoc = await addressesRef
+          .doc(currentCompany.addressId)
+          .get();
+        if (addressDoc.exists) {
+          const address = addressDoc.data();
+          const addressParts = [];
+
+          if (address.streetName) {
+            addressParts.push(
+              address.streetName +
+                (address.streetNumber ? " " + address.streetNumber : "")
+            );
+          }
+
+          if (address.district) addressParts.push(address.district);
+          if (address.city) addressParts.push(address.city);
+          if (address.country) addressParts.push(address.country);
+
+          if (address.nextTo) {
+            addressParts.push("Next to: " + address.nextTo);
+          }
+
+          addressDisplay =
+            addressParts.join(", ") || "Address details incomplete";
+
+          // Update the address display if the element exists
+          const addressValueEl = document.querySelector(
+            '.detail-value[data-address="true"]'
+          );
+          if (addressValueEl) {
+            addressValueEl.textContent = addressDisplay;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching address:", error);
+      }
+    }
+  };
+
   // Update company profile section content
   const companyProfileSection = document.getElementById(
     "company-profile-section"
@@ -69,10 +114,7 @@ function loadCompanyProfile() {
                     <h4>Address Information</h4>
                     <div class="detail-item">
                         <div class="detail-label">Current Address</div>
-                        <div class="detail-value">${
-                          currentCompany.address ||
-                          "No address information available"
-                        }</div>
+                        <div class="detail-value" data-address="true">${addressDisplay}</div>
                     </div>
                     <div class="edit-address-btn-container">
                         <button onclick="showEditAddressModal()" class="secondary-btn">Edit Address</button>
@@ -127,6 +169,9 @@ function loadCompanyProfile() {
       showEditProfileModal();
     });
   }
+
+  // Load address data
+  loadAddress();
 }
 
 // Format date for display
@@ -206,6 +251,18 @@ async function updateCompanyProfile() {
       return;
     }
 
+    // Validate phone number format if provided
+    if (phoneNumber) {
+      const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
+      if (!phoneRegex.test(phoneNumber)) {
+        showMessage(
+          "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits long",
+          "error"
+        );
+        return;
+      }
+    }
+
     // Show loading message
     showMessage("Updating profile...", "info");
 
@@ -249,138 +306,366 @@ async function updateCompanyProfile() {
 
 // Show edit address modal
 function showEditAddressModal() {
-  console.log("showEditAddressModal function called");
+  // Fetch company address data
+  let addressData = {
+    streetName: "",
+    streetNumber: "",
+    city: "",
+    district: "",
+    country: "",
+    nextTo: "",
+    latLon: null,
+  };
 
-  // Parse existing address if available
-  let streetAddress = "";
-  let city = "";
-  let state = "";
-  let zipCode = "";
-  let country = "";
+  // Show loading indicator in the modal
+  showModal(
+    "Edit Company Address",
+    `<div class="loading-indicator">Loading address data...</div>`
+  );
 
-  if (currentCompany.address) {
-    // Try to parse the existing address
-    const addressLines = currentCompany.address.split("\n");
-
-    if (addressLines.length >= 1) {
-      streetAddress = addressLines[0];
-    }
-
-    if (addressLines.length >= 2) {
-      // Try to parse the city, state, zip line
-      const cityStateLine = addressLines[1];
-      const cityStateMatch = cityStateLine.match(/([^,]+),\s*([^,]+)\s*(\d*)/);
-
-      if (cityStateMatch) {
-        city = cityStateMatch[1] || "";
-        state = cityStateMatch[2] || "";
-        zipCode = cityStateMatch[3] || "";
+  // If company has addressId, fetch address data
+  const fetchAddress = async () => {
+    if (currentCompany.addressId) {
+      try {
+        const doc = await addressesRef.doc(currentCompany.addressId).get();
+        if (doc.exists) {
+          addressData = { ...addressData, ...doc.data() };
+        }
+      } catch (error) {
+        console.error("Error fetching address:", error);
+        showMessage("Error loading address data", "error");
       }
     }
 
-    if (addressLines.length >= 3) {
-      country = addressLines[2];
-    }
-  }
+    // Now display the form with data loaded
+    showAddressForm(addressData);
+  };
 
-  // Use stored individual fields if available
-  city = currentCompany.city || city;
-  state = currentCompany.state || state;
-  zipCode = currentCompany.zipCode || zipCode;
-  country = currentCompany.country || country;
+  // Start fetching the address
+  fetchAddress();
+}
 
+// Display the address form with pre-filled data
+function showAddressForm(addressData) {
   const modalContent = `
-        <div class="edit-address-form">
+    <div class="edit-address-form">
+        <div class="form-row">
             <div class="form-group">
-                <label for="edit-company-address">Street Address</label>
-                <textarea id="edit-company-address" rows="3" placeholder="Enter your street address">${streetAddress}</textarea>
+                <label for="edit-company-street-name">Street Name</label>
+                <input type="text" id="edit-company-street-name" placeholder="Street Name" value="${
+                  addressData.streetName || ""
+                }">
             </div>
             <div class="form-group">
-                <label for="edit-company-city">City</label>
-                <input type="text" id="edit-company-city" value="${city}" placeholder="City">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-state">State/Province</label>
-                <input type="text" id="edit-company-state" value="${state}" placeholder="State or Province">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-zip">Postal/ZIP Code</label>
-                <input type="text" id="edit-company-zip" value="${zipCode}" placeholder="ZIP or Postal Code">
-            </div>
-            <div class="form-group">
-                <label for="edit-company-country">Country</label>
-                <input type="text" id="edit-company-country" value="${country}" placeholder="Country">
-            </div>
-            
-            <div class="form-footer">
-                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                <button type="button" class="primary-btn" onclick="updateCompanyAddress()">Save Address</button>
+                <label for="edit-company-street-number">Street Number</label>
+                <input type="text" id="edit-company-street-number" placeholder="Street Number" value="${
+                  addressData.streetNumber || ""
+                }">
             </div>
         </div>
-    `;
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-company-city">City</label>
+                <input type="text" id="edit-company-city" placeholder="City" value="${
+                  addressData.city || ""
+                }">
+            </div>
+            <div class="form-group">
+                <label for="edit-company-district">District</label>
+                <input type="text" id="edit-company-district" placeholder="District" value="${
+                  addressData.district || ""
+                }">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-company-country">Country</label>
+                <input type="text" id="edit-company-country" placeholder="Country" value="${
+                  addressData.country || ""
+                }">
+            </div>
+            <div class="form-group">
+                <label for="edit-company-next-to">Next To</label>
+                <input type="text" id="edit-company-next-to" placeholder="Next To (e.g., Near Central Bank)" value="${
+                  addressData.nextTo || ""
+                }">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group map-container">
+                <label>Location</label>
+                <div id="address-map" style="height: 200px; margin-bottom: 10px;"></div>
+                <button type="button" id="get-location-btn" class="outline-btn">
+                    <i class="fas fa-map-marker-alt"></i> Get Current Location
+                </button>
+                <div class="coordinates-display">
+                    <span id="lat-lng-display">${
+                      addressData.latLon
+                        ? `Lat: ${addressData.latLon.latitude}, Lng: ${addressData.latLon.longitude}`
+                        : "No coordinates selected"
+                    }</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-footer">
+            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+            <button type="button" class="primary-btn" onclick="updateCompanyAddress()">Save Address</button>
+        </div>
+    </div>
+  `;
 
-  showModal("Edit Company Address", modalContent);
+  // Update the modal content
+  document.querySelector(".modal-content").innerHTML = modalContent;
+  document.querySelector(".modal-title").textContent = "Edit Company Address";
+
+  // Initialize map if Google Maps API is available
+  if (typeof google !== "undefined" && google.maps) {
+    initializeAddressMap(addressData.latLon);
+  } else {
+    document.getElementById("address-map").innerHTML =
+      '<div class="map-placeholder">Map cannot be loaded</div>';
+  }
+
+  // Add event listener for getting current location
+  document
+    .getElementById("get-location-btn")
+    .addEventListener("click", getCurrentLocation);
+}
+
+// Initialize map for address selection
+function initializeAddressMap(latLng) {
+  if (!latLng) {
+    latLng = { latitude: 15.3694, longitude: 44.191 }; // Default to Sana'a, Yemen
+  }
+
+  const mapOptions = {
+    center: { lat: latLng.latitude, lng: latLng.longitude },
+    zoom: 15,
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+  };
+
+  const map = new google.maps.Map(
+    document.getElementById("address-map"),
+    mapOptions
+  );
+
+  // Add marker
+  let marker = new google.maps.Marker({
+    position: { lat: latLng.latitude, lng: latLng.longitude },
+    map: map,
+    draggable: true,
+  });
+
+  // Update coordinates when marker is dragged
+  google.maps.event.addListener(marker, "dragend", function () {
+    const position = marker.getPosition();
+    const newLatLng = {
+      latitude: position.lat(),
+      longitude: position.lng(),
+    };
+    updateLatLngDisplay(newLatLng);
+  });
+
+  // Add click listener to map
+  google.maps.event.addListener(map, "click", function (event) {
+    marker.setPosition(event.latLng);
+    const newLatLng = {
+      latitude: event.latLng.lat(),
+      longitude: event.latLng.lng(),
+    };
+    updateLatLngDisplay(newLatLng);
+  });
+
+  // Get current location button
+  document
+    .getElementById("get-location-btn")
+    .addEventListener("click", function () {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            const currentLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            map.setCenter(currentLocation);
+            marker.setPosition(currentLocation);
+
+            const newLatLng = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            };
+            updateLatLngDisplay(newLatLng);
+          },
+          function () {
+            showMessage("Error: The Geolocation service failed.", "error");
+          }
+        );
+      } else {
+        showMessage(
+          "Error: Your browser doesn't support geolocation.",
+          "error"
+        );
+      }
+    });
+}
+
+// Get current location for address map
+function getCurrentLocation() {
+  if (navigator.geolocation) {
+    // Show loading indicator
+    document.getElementById("get-location-btn").innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Getting location...';
+
+    navigator.geolocation.getCurrentPosition(
+      // Success callback
+      (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        // Update the map
+        const latLng = { latitude, longitude };
+        initializeAddressMap(latLng);
+
+        // Update the display
+        updateLatLngDisplay(latLng);
+
+        // Reset button
+        document.getElementById("get-location-btn").innerHTML =
+          '<i class="fas fa-map-marker-alt"></i> Get Current Location';
+
+        showMessage("Location updated successfully", "success");
+      },
+      // Error callback
+      (error) => {
+        console.error("Error getting current location:", error);
+        showMessage(`Could not get your location: ${error.message}`, "error");
+
+        // Reset button
+        document.getElementById("get-location-btn").innerHTML =
+          '<i class="fas fa-map-marker-alt"></i> Get Current Location';
+      },
+      // Options
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  } else {
+    showMessage("Geolocation is not supported by this browser", "error");
+  }
+}
+
+// Update the lat/lng display
+function updateLatLngDisplay(latLng) {
+  if (
+    latLng &&
+    typeof latLng.latitude === "number" &&
+    typeof latLng.longitude === "number"
+  ) {
+    document.getElementById(
+      "lat-lng-display"
+    ).textContent = `Lat: ${latLng.latitude.toFixed(
+      6
+    )}, Lng: ${latLng.longitude.toFixed(6)}`;
+  } else {
+    document.getElementById("lat-lng-display").textContent =
+      "No coordinates selected";
+  }
 }
 
 // Update company address
 async function updateCompanyAddress() {
   try {
-    const address = document
-      .getElementById("edit-company-address")
+    // Get form values
+    const streetName = document
+      .getElementById("edit-company-street-name")
+      .value.trim();
+    const streetNumber = document
+      .getElementById("edit-company-street-number")
       .value.trim();
     const city = document.getElementById("edit-company-city").value.trim();
-    const state = document.getElementById("edit-company-state").value.trim();
-    const zipCode = document.getElementById("edit-company-zip").value.trim();
+    const district = document
+      .getElementById("edit-company-district")
+      .value.trim();
     const country = document
       .getElementById("edit-company-country")
       .value.trim();
+    const nextTo = document.getElementById("edit-company-next-to").value.trim();
+
+    // Validate required fields
+    if (!streetName || !city || !country) {
+      showMessage("Street name, city, and country are required", "error");
+      return;
+    }
+
+    // Get lat/lng from display
+    let latLon = null;
+    const latLngText = document.getElementById("lat-lng-display").textContent;
+    if (latLngText && latLngText !== "No coordinates selected") {
+      const matches = latLngText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
+      if (matches && matches.length === 3) {
+        latLon = {
+          latitude: parseFloat(matches[1]),
+          longitude: parseFloat(matches[2]),
+        };
+      }
+    }
+
+    if (!latLon) {
+      showMessage("Please select a location on the map", "error");
+      return;
+    }
 
     // Show loading message
     showMessage("Updating address...", "info");
 
-    // Format full address for display
-    let fullAddress = address;
-    if (city && state) {
-      fullAddress += `\n${city}, ${state}`;
-      if (zipCode) {
-        fullAddress += ` ${zipCode}`;
-      }
-    }
-    if (country) {
-      fullAddress += `\n${country}`;
-    }
-
-    // Update Firestore
-    await companiesRef.doc(currentCompany.id).update({
-      address: fullAddress,
-      city: city,
-      state: state,
-      zipCode: zipCode,
-      country: country,
+    // Prepare address data object
+    const addressData = {
+      streetName,
+      streetNumber,
+      city,
+      district,
+      country,
+      nextTo,
+      latLon,
       updatedAt: getTimestamp(),
-    });
+    };
 
-    // Update local company data
-    currentCompany.address = fullAddress;
-    currentCompany.city = city;
-    currentCompany.state = state;
-    currentCompany.zipCode = zipCode;
-    currentCompany.country = country;
+    // Create or update address
+    if (currentCompany.addressId) {
+      // Update existing address
+      await addressesRef.doc(currentCompany.addressId).update(addressData);
+    } else {
+      // Create new address
+      addressData.createdAt = getTimestamp();
+      const addressRef = await addressesRef.add(addressData);
 
-    // Update stored company data
-    setCurrentCompany(currentCompany);
+      // Update company with new addressId
+      await companiesRef.doc(currentCompany.id).update({
+        addressId: addressRef.id,
+        updatedAt: getTimestamp(),
+      });
+
+      // Update local company data
+      currentCompany.addressId = addressRef.id;
+      setCurrentCompany(currentCompany);
+    }
 
     // Hide modal and reload profile
     hideModal();
     loadCompanyProfile();
 
     // Log activity
-    await logActivity("update", "company_address", currentCompany.id);
+    await logActivity("update", "address", currentCompany.addressId);
 
-    // Show success message
     showMessage("Address updated successfully", "success");
   } catch (error) {
-    console.error("Error updating company address:", error);
+    console.error("Error updating address:", error);
     showMessage(`Error updating address: ${error.message}`, "error");
   }
 }
