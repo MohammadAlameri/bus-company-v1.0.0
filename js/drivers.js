@@ -508,6 +508,7 @@ async function handleAddDriver(e) {
   const passportNoInput = document.getElementById("driver-passport-no");
   const passportUrlInput = document.getElementById("driver-passport-url");
 
+  // Validate required fields
   if (
     !nameInput ||
     !emailInput ||
@@ -517,6 +518,16 @@ async function handleAddDriver(e) {
     !licenseNoInput
   ) {
     showMessage("Please fill in all required fields", "error");
+    return;
+  }
+
+  // Validate phone number format (starts with 78,77,70,71,73 and has 9 digits total)
+  const phoneRegex = /^(78|77|70|71|73)\d{7}$/;
+  if (!phoneRegex.test(phoneInput.value)) {
+    showMessage(
+      "Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits long",
+      "error"
+    );
     return;
   }
 
@@ -539,14 +550,14 @@ async function handleAddDriver(e) {
       phoneNumber: phoneInput.value,
       gender: genderInput.value,
       dateOfBirth: new Date(dobInput.value),
-      bio: bioInput.value,
-      imageURL: imageInput.value,
+      bio: bioInput.value || "",
+      imageURL: imageInput.value || "",
       licenseNo: licenseNoInput.value,
-      licenseURL: licenseUrlInput.value,
-      nationalityNo: nationalityNoInput.value,
-      nationalityURL: nationalityUrlInput.value,
-      passportNo: passportNoInput.value,
-      passportURL: passportUrlInput.value,
+      licenseURL: licenseUrlInput.value || "",
+      nationalityNo: nationalityNoInput.value || "",
+      nationalityURL: nationalityUrlInput.value || "",
+      passportNo: passportNoInput.value || "",
+      passportURL: passportUrlInput.value || "",
       addressId: addressRef.id,
       companyId: currentCompany.id,
       createdAt: getTimestamp(),

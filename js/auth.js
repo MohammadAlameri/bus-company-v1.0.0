@@ -10,6 +10,9 @@ let registerBtn;
 let registerGoogleBtn;
 let logoutBtn;
 let verificationSection;
+let resendVerificationBtn;
+let checkVerificationBtn;
+let returnToLoginBtn;
 
 // Wait for the document to be fully loaded before accessing DOM elements
 document.addEventListener("DOMContentLoaded", () => {
@@ -27,10 +30,16 @@ document.addEventListener("DOMContentLoaded", () => {
   registerGoogleBtn = document.getElementById("register-google-btn");
   logoutBtn = document.getElementById("logout-btn");
 
-  console.log("Register button element:", registerBtn);
-
-  // Create verification section
+  // Initialize verification section
   initializeVerificationSection();
+  document.body.appendChild(verificationSection);
+
+  // Initialize verification buttons after the section is created
+  resendVerificationBtn = document.getElementById("resend-verification");
+  checkVerificationBtn = document.getElementById("check-verification");
+  returnToLoginBtn = document.getElementById("return-to-login");
+
+  console.log("Register button element:", registerBtn);
 
   // Initialize event listeners
   setupEventListeners();
@@ -111,34 +120,47 @@ function setupEventListeners() {
     });
   }
 
-  // Email Login
+  // Login button
   if (loginBtn) {
     loginBtn.addEventListener("click", handleLogin);
   }
 
-  // Google Login
+  // Google login button
   if (googleLoginBtn) {
     googleLoginBtn.addEventListener("click", handleGoogleLogin);
   }
 
-  // Email Registration
+  // Register button
   if (registerBtn) {
-    console.log("Setting up register button event listener");
     registerBtn.addEventListener("click", handleRegistration);
-  } else {
-    console.error("Register button not found in the DOM");
   }
 
-  // Google Registration
+  // Google registration button
   if (registerGoogleBtn) {
     registerGoogleBtn.addEventListener("click", handleGoogleRegistration);
   }
 
-  // Logout
+  // Logout button
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
-      auth.signOut();
+      auth.signOut().then(() => {
+        clearCurrentCompany();
+        window.location.reload();
+      });
     });
+  }
+
+  // Verification-related buttons
+  if (resendVerificationBtn) {
+    resendVerificationBtn.addEventListener("click", resendVerificationEmail);
+  }
+
+  if (checkVerificationBtn) {
+    checkVerificationBtn.addEventListener("click", checkEmailVerification);
+  }
+
+  if (returnToLoginBtn) {
+    returnToLoginBtn.addEventListener("click", returnToLogin);
   }
 }
 
@@ -713,6 +735,7 @@ async function createCompanyProfile(userId, name, email, authProvider) {
     };
   } catch (error) {
     console.error("Error creating company profile:", error);
+    showMessage(`Error creating company profile: ${error.message}`, "error");
     throw error;
   }
 }

@@ -681,7 +681,6 @@ async function handleAddTrip(e) {
   const arrivalInput = document.getElementById("trip-arrival");
   const waitingInput = document.getElementById("trip-waiting");
   const routeTypeInput = document.getElementById("trip-route-type");
-  const transportTypeInput = document.getElementById("trip-transport-type");
   const priceInput = document.getElementById("trip-price");
   const currencyInput = document.getElementById("trip-currency");
 
@@ -693,7 +692,6 @@ async function handleAddTrip(e) {
     !departureInput ||
     !arrivalInput ||
     !routeTypeInput ||
-    !transportTypeInput ||
     !priceInput ||
     !currencyInput
   ) {
@@ -719,12 +717,10 @@ async function handleAddTrip(e) {
         hour: waitingHours,
         minute: remainingMinutes,
       },
-      routeType: routeTypeInput.value,
-      typeOfTransportation: transportTypeInput.value,
+      routeType: routeTypeInput.value, // Direct or Multiple Stops
       price: parseFloat(priceInput.value),
-      currency: currencyInput.value,
+      currency: currencyInput.value, // YER, SAR, USD
       companyId: currentCompany.id,
-      createdAt: getTimestamp(),
     };
 
     const newTripRef = await tripsRef.add(tripData);

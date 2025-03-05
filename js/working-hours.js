@@ -223,61 +223,11 @@ function addWorkingHoursEventListeners() {
   }
 }
 
-// Load existing working hours from Firestore
-async function loadExistingWorkingHours() {
-  try {
-    const snapshot = await db
-      .collection("workingHours")
-      .where("companyId", "==", currentCompany.id)
-      .get();
-
-    if (!snapshot.empty) {
-      const workingHoursData = snapshot.docs[0].data();
-
-      if (workingHoursData && workingHoursData.hours) {
-        // Update the form with the loaded data
-        Object.entries(workingHoursData.hours).forEach(([day, data]) => {
-          const dayToggle = document.querySelector(
-            `.day-enabled[data-day="${day}"]`
-          );
-          const startTime = document.querySelector(
-            `.start-time[data-day="${day}"]`
-          );
-          const endTime = document.querySelector(
-            `.end-time[data-day="${day}"]`
-          );
-          const statusText = dayToggle
-            .closest(".weekday-status")
-            .querySelector(".status-text");
-
-          if (dayToggle && startTime && endTime) {
-            dayToggle.checked = data.isOpen;
-            statusText.textContent = data.isOpen ? "Open" : "Closed";
-
-            if (data.startTime) {
-              startTime.value = data.startTime;
-              startTime.disabled = !data.isOpen;
-            }
-
-            if (data.endTime) {
-              endTime.value = data.endTime;
-              endTime.disabled = !data.isOpen;
-            }
-          }
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error loading existing working hours:", error);
-  }
-}
-
 // Save working hours to Firestore
 async function saveWorkingHours() {
   try {
     showMessage("Saving working hours...", "info");
 
-    const workingHours = {};
     const days = [
       "Monday",
       "Tuesday",
@@ -288,45 +238,68 @@ async function saveWorkingHours() {
       "Sunday",
     ];
 
-    // Collect data from form
-    days.forEach((day) => {
-      const isOpen = document.querySelector(
-        `.day-enabled[data-day="${day}"]`
-      ).checked;
-      const startTime = document.querySelector(
-        `.start-time[data-day="${day}"]`
-      ).value;
-      const endTime = document.querySelector(
-        `.end-time[data-day="${day}"]`
-      ).value;
-
-      workingHours[day] = {
-        isOpen,
-        startTime: isOpen ? startTime : null,
-        endTime: isOpen ? endTime : null,
-      };
-    });
-
-    // Check if we have existing working hours
+    // First, get existing records to delete them
     const snapshot = await db
       .collection("workingHours")
       .where("companyId", "==", currentCompany.id)
       .get();
 
-    if (snapshot.empty) {
-      // Create new working hours document
-      await db.collection("workingHours").add({
-        companyId: currentCompany.id,
-        hours: workingHours,
-        createdAt: getTimestamp(),
-        updatedAt: getTimestamp(),
-      });
+    // Delete existing records in a batch
+    const batch = db.batch();
+    snapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log(`Deleted ${snapshot.size} existing working hours records`);
+
+    // Create new batch for adding new records
+    const newBatch = db.batch();
+    let recordsAdded = 0;
+
+    // Create a new document for each day of the week
+    days.forEach((day) => {
+      const isOpen = document.querySelector(
+        `.day-enabled[data-day="${day}"]`
+      ).checked;
+
+      // Only create records for open days
+      if (isOpen) {
+        const startTime = document.querySelector(
+          `.start-time[data-day="${day}"]`
+        ).value;
+        const endTime = document.querySelector(
+          `.end-time[data-day="${day}"]`
+        ).value;
+
+        // Validate times
+        if (!startTime || !endTime) {
+          console.warn(`Missing time for ${day}, skipping`);
+          return;
+        }
+
+        // Create a new document for this day
+        const newDocRef = db.collection("workingHours").doc();
+
+        // Set the data according to the schema
+        newBatch.set(newDocRef, {
+          companyId: currentCompany.id,
+          startTime: startTime,
+          endTime: endTime,
+          dayOfWeek: day,
+          createdAt: getTimestamp(),
+          updatedAt: getTimestamp(),
+        });
+
+        recordsAdded++;
+      }
+    });
+
+    // Commit the batch
+    if (recordsAdded > 0) {
+      await newBatch.commit();
+      console.log(`Added ${recordsAdded} working hours records`);
     } else {
-      // Update existing working hours
-      await snapshot.docs[0].ref.update({
-        hours: workingHours,
-        updatedAt: getTimestamp(),
-      });
+      console.warn("No working hours records added");
     }
 
     await logActivity("update", "workingHours", currentCompany.id);
@@ -334,6 +307,97 @@ async function saveWorkingHours() {
   } catch (error) {
     console.error("Error saving working hours:", error);
     showMessage("Error saving working hours: " + error.message, "error");
+  }
+}
+
+// Load existing working hours from Firestore
+async function loadExistingWorkingHours() {
+  try {
+    console.log("Loading working hours for company:", currentCompany.id);
+
+    // First reset all days to closed
+    const days = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ];
+
+    days.forEach((day) => {
+      const dayToggle = document.querySelector(
+        `.day-enabled[data-day="${day}"]`
+      );
+      const startTime = document.querySelector(
+        `.start-time[data-day="${day}"]`
+      );
+      const endTime = document.querySelector(`.end-time[data-day="${day}"]`);
+      const statusText = dayToggle
+        .closest(".weekday-status")
+        .querySelector(".status-text");
+
+      dayToggle.checked = false;
+      statusText.textContent = "Closed";
+      startTime.disabled = true;
+      endTime.disabled = true;
+
+      // Reset to default times
+      startTime.value = "09:00";
+      endTime.value = "17:00";
+    });
+
+    // Now get all working hours records
+    const snapshot = await db
+      .collection("workingHours")
+      .where("companyId", "==", currentCompany.id)
+      .get();
+
+    console.log(`Found ${snapshot.size} working hours records`);
+
+    if (!snapshot.empty) {
+      // Process each working hours record
+      snapshot.forEach((doc) => {
+        const record = doc.data();
+        const day = record.dayOfWeek;
+
+        // Find the form elements for this day
+        const dayToggle = document.querySelector(
+          `.day-enabled[data-day="${day}"]`
+        );
+        const startTime = document.querySelector(
+          `.start-time[data-day="${day}"]`
+        );
+        const endTime = document.querySelector(`.end-time[data-day="${day}"]`);
+
+        if (dayToggle && startTime && endTime) {
+          const statusText = dayToggle
+            .closest(".weekday-status")
+            .querySelector(".status-text");
+
+          // Set the form values
+          dayToggle.checked = true;
+          statusText.textContent = "Open";
+          startTime.disabled = false;
+          endTime.disabled = false;
+
+          if (record.startTime) {
+            startTime.value = record.startTime;
+          }
+
+          if (record.endTime) {
+            endTime.value = record.endTime;
+          }
+
+          console.log(
+            `Loaded working hours for ${day}: ${record.startTime} - ${record.endTime}`
+          );
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error loading working hours:", error);
   }
 }
 
@@ -395,7 +459,7 @@ async function loadTimeOffData() {
     console.log(`Querying specifically for company ID: "${currentCompany.id}"`);
     const companyRecords = await timeOffRef
       .where("companyId", "==", currentCompany.id)
-      .orderBy("startDate", "desc")
+      .orderBy("specificDay", "desc")
       .get();
 
     console.log(
@@ -431,47 +495,53 @@ async function loadTimeOffData() {
           JSON.stringify(timeOff)
         );
 
-        // Handle dates extremely carefully
-        let startDateObj, endDateObj;
-        let startDateStr = "Invalid date";
-        let endDateStr = "Invalid date";
-
+        // Get the specific day
+        let specificDayStr = "N/A";
         try {
-          // Handle Firestore Timestamp objects
           if (
-            timeOff.startDate &&
-            typeof timeOff.startDate.toDate === "function"
+            timeOff.specificDay &&
+            typeof timeOff.specificDay.toDate === "function"
           ) {
-            startDateObj = timeOff.startDate.toDate();
-            startDateStr = startDateObj.toLocaleDateString();
-          }
-          // Handle string dates or timestamps
-          else if (timeOff.startDate) {
-            startDateObj = new Date(timeOff.startDate);
-            startDateStr = startDateObj.toLocaleDateString();
-          }
-
-          if (timeOff.endDate && typeof timeOff.endDate.toDate === "function") {
-            endDateObj = timeOff.endDate.toDate();
-            endDateStr = endDateObj.toLocaleDateString();
-          } else if (timeOff.endDate) {
-            endDateObj = new Date(timeOff.endDate);
-            endDateStr = endDateObj.toLocaleDateString();
+            const specificDayObj = timeOff.specificDay.toDate();
+            specificDayStr = specificDayObj.toLocaleDateString();
+          } else if (timeOff.specificDay) {
+            const specificDayObj = new Date(timeOff.specificDay);
+            specificDayStr = specificDayObj.toLocaleDateString();
           }
         } catch (dateError) {
           console.error("Date parsing error:", dateError);
         }
 
+        // Format frequency and day of week
+        let frequencyDisplay = "";
+        if (timeOff.frequency === "once") {
+          frequencyDisplay = "One-time";
+        } else if (timeOff.frequency === "daily") {
+          frequencyDisplay = "Daily";
+        } else if (timeOff.frequency === "weekly") {
+          frequencyDisplay = `Weekly (${timeOff.dayOfWeek || "Not specified"})`;
+        } else {
+          frequencyDisplay = timeOff.frequency || "Not specified";
+        }
+
         // Add this record to our HTML
         timeOffHTML += `
           <div class="time-off-item" data-id="${doc.id}">
-            <div class="time-off-date">
-              <span>${startDateStr}</span>
-              <span>to</span>
-              <span>${endDateStr}</span>
+            <div class="time-off-header">
+              <h3>${timeOff.title || "Untitled"}</h3>
+              <span class="time-off-badge">${frequencyDisplay}</span>
             </div>
-            <div class="time-off-reason">
-              ${timeOff.reason || "No reason provided"}
+            <div class="time-off-details">
+              <div class="time-off-date">
+                <i class="fas fa-calendar"></i>
+                <span>${specificDayStr}</span>
+              </div>
+              <div class="time-off-time">
+                <i class="fas fa-clock"></i>
+                <span>${timeOff.startTime || "N/A"} - ${
+          timeOff.endTime || "N/A"
+        }</span>
+              </div>
             </div>
             <div class="time-off-actions">
               <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
@@ -578,57 +648,105 @@ async function loadTimeOffData() {
 // Show add time off modal
 function showAddTimeOffModal() {
   const today = new Date().toISOString().split("T")[0];
+  const currentTime = new Date().toTimeString().substring(0, 5); // Gets current time in HH:MM format
 
   const modalContent = `
-        <div class="add-time-off-form">
-            <div class="form-group">
-                <label for="time-off-start">Start Date</label>
-                <input type="date" id="time-off-start" min="${today}">
-            </div>
-            <div class="form-group">
-                <label for="time-off-end">End Date</label>
-                <input type="date" id="time-off-end" min="${today}">
-            </div>
-            <div class="form-group">
-                <label for="time-off-reason">Reason (Optional)</label>
-                <textarea id="time-off-reason" rows="3"></textarea>
-            </div>
-            
-            <div class="form-footer">
-                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                <button type="button" class="primary-btn" onclick="addTimeOff()">Add Time Off</button>
-            </div>
-        </div>
-    `;
+    <div class="add-time-off-form">
+      <div class="form-group">
+        <label for="time-off-reason">Title</label>
+        <input type="text" id="time-off-reason" placeholder="Enter time off title">
+      </div>
+      
+      <div class="form-group">
+        <label for="time-off-frequency">Frequency</label>
+        <select id="time-off-frequency">
+          <option value="once">Once</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+      
+      <div class="form-group day-of-week-group" style="display: none;">
+        <label for="time-off-day">Day of Week</label>
+        <select id="time-off-day">
+          <option value="Monday">Monday</option>
+          <option value="Tuesday">Tuesday</option>
+          <option value="Wednesday">Wednesday</option>
+          <option value="Thursday">Thursday</option>
+          <option value="Friday">Friday</option>
+          <option value="Saturday">Saturday</option>
+          <option value="Sunday">Sunday</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="time-off-start">Specific Day</label>
+        <input type="date" id="time-off-start" min="${today}">
+      </div>
+      
+      <div class="form-group">
+        <label for="time-off-start-time">Start Time</label>
+        <input type="time" id="time-off-start-time" value="${currentTime}">
+      </div>
+      
+      <div class="form-group">
+        <label for="time-off-end-time">End Time</label>
+        <input type="time" id="time-off-end-time" value="${currentTime}">
+      </div>
+      
+      <div class="form-actions">
+        <button class="secondary-btn cancel-modal-btn">Cancel</button>
+        <button class="primary-btn" id="add-time-off-btn">Add Time Off</button>
+      </div>
+    </div>
+  `;
 
   showModal("Add Time Off", modalContent);
 
-  // Initialize end date to default to start date when start date changes
-  document.getElementById("time-off-start").addEventListener("change", (e) => {
-    const endDateInput = document.getElementById("time-off-end");
-    if (endDateInput.value === "" || endDateInput.value < e.target.value) {
-      endDateInput.value = e.target.value;
-    }
-    endDateInput.min = e.target.value;
-  });
+  // Add event listener for frequency dropdown
+  document
+    .getElementById("time-off-frequency")
+    .addEventListener("change", function () {
+      const dayOfWeekGroup = document.querySelector(".day-of-week-group");
+      if (this.value === "weekly") {
+        dayOfWeekGroup.style.display = "block";
+      } else {
+        dayOfWeekGroup.style.display = "none";
+      }
+    });
+
+  // Add event listener for add button
+  document
+    .getElementById("add-time-off-btn")
+    .addEventListener("click", addTimeOff);
 }
 
 // Add time off record
 async function addTimeOff() {
   try {
-    const startDate = document.getElementById("time-off-start").value;
-    const endDate = document.getElementById("time-off-end").value;
-    const reason = document.getElementById("time-off-reason").value.trim();
+    // Get form values
+    const title = document.getElementById("time-off-reason").value.trim();
+    const specificDay = document.getElementById("time-off-start").value;
+    const startTimeInput = document.getElementById("time-off-start-time").value;
+    const endTimeInput = document.getElementById("time-off-end-time").value;
+    const frequency = document.getElementById("time-off-frequency").value;
+    const dayOfWeek = document.getElementById("time-off-day").value || "";
 
-    if (!startDate || !endDate) {
-      showMessage("Please select both start and end dates", "error");
+    // Validate required fields
+    if (
+      !title ||
+      !specificDay ||
+      !startTimeInput ||
+      !endTimeInput ||
+      !frequency
+    ) {
+      showMessage("Please fill all required fields", "error");
       return;
     }
 
-    if (new Date(endDate) < new Date(startDate)) {
-      showMessage("End date cannot be before start date", "error");
-      return;
-    }
+    // Convert time inputs to TimeOfDay objects (stored as strings in Firestore)
+    const startTime = startTimeInput;
+    const endTime = endTimeInput;
 
     // Verify company data is available
     if (!currentCompany || !currentCompany.id) {
@@ -645,17 +763,19 @@ async function addTimeOff() {
 
     // Show loading message
     showMessage("Adding time off record...", "info");
-    console.log("Adding time off record with dates:", startDate, endDate);
+    console.log("Adding time off record with title:", title);
     console.log("Current company ID:", currentCompany.id);
 
-    // Create the time off data object
+    // Create the time off data object matching the schema
     const timeOffData = {
       companyId: currentCompany.id,
-      startDate: firebase.firestore.Timestamp.fromDate(new Date(startDate)),
-      endDate: firebase.firestore.Timestamp.fromDate(new Date(endDate)),
-      reason: reason,
+      title: title,
+      startTime: startTime,
+      endTime: endTime,
+      frequency: frequency, // "once", "weekly", or "daily"
+      dayOfWeek: dayOfWeek, // Only used if frequency is weekly
+      specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
       createdAt: getTimestamp(),
-      updatedAt: getTimestamp(),
     };
 
     console.log("Time off data to be saved:", JSON.stringify(timeOffData));
@@ -686,111 +806,199 @@ async function addTimeOff() {
 // Show edit time off modal
 async function showEditTimeOffModal(timeOffId) {
   try {
+    // Show loading
+    showMessage("Loading time off data...", "info");
+
+    console.log("Loading time off record for editing:", timeOffId);
+
+    // Get time off document
     const timeOffDoc = await db.collection("timeOff").doc(timeOffId).get();
+
     if (!timeOffDoc.exists) {
       showMessage("Time off record not found", "error");
       return;
     }
 
     const timeOff = timeOffDoc.data();
-    const startDate = timeOff.startDate.toDate
-      ? timeOff.startDate.toDate()
-      : new Date(timeOff.startDate);
-    const endDate = timeOff.endDate.toDate
-      ? timeOff.endDate.toDate()
-      : new Date(timeOff.endDate);
+    console.log("Time off data for editing:", JSON.stringify(timeOff));
+
+    // Format specific day for date input
+    let specificDayValue = "";
+    try {
+      if (
+        timeOff.specificDay &&
+        typeof timeOff.specificDay.toDate === "function"
+      ) {
+        const specificDayObj = timeOff.specificDay.toDate();
+        specificDayValue = specificDayObj.toISOString().split("T")[0];
+      } else if (timeOff.specificDay) {
+        const specificDayObj = new Date(timeOff.specificDay);
+        specificDayValue = specificDayObj.toISOString().split("T")[0];
+      }
+    } catch (e) {
+      console.error("Error formatting specific day:", e);
+    }
 
     const today = new Date().toISOString().split("T")[0];
-    const formattedStartDate = startDate.toISOString().split("T")[0];
-    const formattedEndDate = endDate.toISOString().split("T")[0];
 
     const modalContent = `
-            <div class="edit-time-off-form">
-                <input type="hidden" id="time-off-id" value="${timeOffId}">
-                <div class="form-group">
-                    <label for="edit-time-off-start">Start Date</label>
-                    <input type="date" id="edit-time-off-start" min="${today}" value="${formattedStartDate}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-time-off-end">End Date</label>
-                    <input type="date" id="edit-time-off-end" min="${formattedStartDate}" value="${formattedEndDate}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-time-off-reason">Reason (Optional)</label>
-                    <textarea id="edit-time-off-reason" rows="3">${
-                      timeOff.reason || ""
-                    }</textarea>
-                </div>
-                
-                <div class="form-footer">
-                    <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
-                    <button type="button" class="primary-btn" onclick="updateTimeOff()">Update Time Off</button>
-                </div>
-            </div>
-        `;
+      <div class="edit-time-off-form" data-id="${timeOffId}">
+        <div class="form-group">
+          <label for="edit-time-off-reason">Title</label>
+          <input type="text" id="edit-time-off-reason" value="${
+            timeOff.title || ""
+          }">
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-time-off-frequency">Frequency</label>
+          <select id="edit-time-off-frequency">
+            <option value="once" ${
+              timeOff.frequency === "once" ? "selected" : ""
+            }>Once</option>
+            <option value="daily" ${
+              timeOff.frequency === "daily" ? "selected" : ""
+            }>Daily</option>
+            <option value="weekly" ${
+              timeOff.frequency === "weekly" ? "selected" : ""
+            }>Weekly</option>
+          </select>
+        </div>
+        
+        <div class="form-group day-of-week-group" style="display: ${
+          timeOff.frequency === "weekly" ? "block" : "none"
+        };">
+          <label for="edit-time-off-day">Day of Week</label>
+          <select id="edit-time-off-day">
+            <option value="Monday" ${
+              timeOff.dayOfWeek === "Monday" ? "selected" : ""
+            }>Monday</option>
+            <option value="Tuesday" ${
+              timeOff.dayOfWeek === "Tuesday" ? "selected" : ""
+            }>Tuesday</option>
+            <option value="Wednesday" ${
+              timeOff.dayOfWeek === "Wednesday" ? "selected" : ""
+            }>Wednesday</option>
+            <option value="Thursday" ${
+              timeOff.dayOfWeek === "Thursday" ? "selected" : ""
+            }>Thursday</option>
+            <option value="Friday" ${
+              timeOff.dayOfWeek === "Friday" ? "selected" : ""
+            }>Friday</option>
+            <option value="Saturday" ${
+              timeOff.dayOfWeek === "Saturday" ? "selected" : ""
+            }>Saturday</option>
+            <option value="Sunday" ${
+              timeOff.dayOfWeek === "Sunday" ? "selected" : ""
+            }>Sunday</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-time-off-start">Specific Day</label>
+          <input type="date" id="edit-time-off-start" min="${today}" value="${specificDayValue}">
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-time-off-start-time">Start Time</label>
+          <input type="time" id="edit-time-off-start-time" value="${
+            timeOff.startTime || ""
+          }">
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-time-off-end-time">End Time</label>
+          <input type="time" id="edit-time-off-end-time" value="${
+            timeOff.endTime || ""
+          }">
+        </div>
+        
+        <div class="form-actions">
+          <button class="secondary-btn cancel-modal-btn">Cancel</button>
+          <button class="primary-btn" id="update-time-off-btn">Update Time Off</button>
+        </div>
+      </div>
+    `;
 
     showModal("Edit Time Off", modalContent);
 
-    // Initialize end date to default to start date when start date changes
+    // Add event listener for frequency dropdown
     document
-      .getElementById("edit-time-off-start")
-      .addEventListener("change", (e) => {
-        const endDateInput = document.getElementById("edit-time-off-end");
-        if (endDateInput.value === "" || endDateInput.value < e.target.value) {
-          endDateInput.value = e.target.value;
+      .getElementById("edit-time-off-frequency")
+      .addEventListener("change", function () {
+        const dayOfWeekGroup = document.querySelector(".day-of-week-group");
+        if (this.value === "weekly") {
+          dayOfWeekGroup.style.display = "block";
+        } else {
+          dayOfWeekGroup.style.display = "none";
         }
-        endDateInput.min = e.target.value;
       });
+
+    // Add event listener for update button
+    document
+      .getElementById("update-time-off-btn")
+      .addEventListener("click", updateTimeOff);
   } catch (error) {
     console.error("Error showing edit time off modal:", error);
-    showMessage(`Error: ${error.message}`, "error");
+    showMessage("Error loading time off data: " + error.message, "error");
   }
 }
 
-// Update time off record
+// Update time off
 async function updateTimeOff() {
   try {
-    const timeOffId = document.getElementById("time-off-id").value;
-    const startDate = document.getElementById("edit-time-off-start").value;
-    const endDate = document.getElementById("edit-time-off-end").value;
-    const reason = document.getElementById("edit-time-off-reason").value.trim();
+    const timeOffId = document.querySelector(".edit-time-off-form").dataset.id;
 
-    if (!startDate || !endDate) {
-      showMessage("Please select both start and end dates", "error");
-      return;
-    }
+    // Get form values
+    const title = document.getElementById("edit-time-off-reason").value.trim();
+    const specificDay = document.getElementById("edit-time-off-start").value;
+    const startTime = document.getElementById("edit-time-off-start-time").value;
+    const endTime = document.getElementById("edit-time-off-end-time").value;
+    const frequency = document.getElementById("edit-time-off-frequency").value;
+    const dayOfWeek = document.getElementById("edit-time-off-day")?.value || "";
 
-    if (new Date(endDate) < new Date(startDate)) {
-      showMessage("End date cannot be before start date", "error");
+    // Validate required fields
+    if (!title || !specificDay || !startTime || !endTime || !frequency) {
+      showMessage("Please fill all required fields", "error");
       return;
     }
 
     // Show loading message
     showMessage("Updating time off record...", "info");
+    console.log("Updating time off record:", timeOffId);
 
     // Update in Firestore
     await db
       .collection("timeOff")
       .doc(timeOffId)
       .update({
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        reason: reason,
+        title: title,
+        specificDay: firebase.firestore.Timestamp.fromDate(
+          new Date(specificDay)
+        ),
+        startTime: startTime,
+        endTime: endTime,
+        frequency: frequency,
+        dayOfWeek: frequency === "weekly" ? dayOfWeek : "",
         updatedAt: getTimestamp(),
       });
 
     // Hide modal and reload time off data
     hideModal();
-    loadTimeOffData();
+
+    // Give the database time to update before reloading
+    setTimeout(() => {
+      loadTimeOffData();
+    }, 500);
 
     // Log activity
-    await logActivity("update", "timeOff", timeOffId);
+    await logActivity("update", "timeOff", currentCompany.id);
 
     // Show success message
     showMessage("Time off record updated successfully", "success");
   } catch (error) {
-    console.error("Error updating time off:", error);
-    showMessage(`Error updating time off: ${error.message}`, "error");
+    console.error("Error updating time off record:", error);
+    showMessage("Error updating time off record: " + error.message, "error");
   }
 }
 
