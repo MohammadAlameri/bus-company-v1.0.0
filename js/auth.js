@@ -32,6 +32,19 @@ document.addEventListener("DOMContentLoaded", () => {
   logoutBtn = document.getElementById("logout-btn");
   forgotPasswordLink = document.getElementById("forgot-password");
 
+  // Debug DOM elements
+  console.log("loginSection:", !!loginSection);
+  console.log("registerSection:", !!registerSection);
+  console.log("dashboardSection:", !!dashboardSection);
+  console.log("showRegisterLink:", !!showRegisterLink);
+  console.log("showLoginLink:", !!showLoginLink);
+  console.log("loginBtn:", !!loginBtn);
+  console.log("googleLoginBtn:", !!googleLoginBtn);
+  console.log("registerBtn:", !!registerBtn);
+  console.log("registerGoogleBtn:", !!registerGoogleBtn);
+  console.log("logoutBtn:", !!logoutBtn);
+  console.log("forgotPasswordLink:", !!forgotPasswordLink);
+
   // Initialize verification section
   initializeVerificationSection();
 
@@ -42,11 +55,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("Register button element:", registerBtn);
 
-  // Check if user is already logged in
-  firebase.auth().onAuthStateChanged(handleAuthStateChanged);
-
   // Set up event listeners
   setupEventListeners();
+
+  // Check if user is already logged in
+  firebase.auth().onAuthStateChanged(handleAuthStateChanged);
 });
 
 // Create verification section element
@@ -106,22 +119,34 @@ function initializeVerificationSection() {
 
 // Setup all event listeners
 function setupEventListeners() {
+  console.log("Setting up event listeners");
+
   // Show register form
   if (showRegisterLink) {
+    console.log("Adding click listener to showRegisterLink");
     showRegisterLink.addEventListener("click", (e) => {
       e.preventDefault();
-      loginSection.classList.add("hidden");
-      registerSection.classList.remove("hidden");
+      if (loginSection && registerSection) {
+        loginSection.classList.add("hidden");
+        registerSection.classList.remove("hidden");
+      }
     });
+  } else {
+    console.warn("showRegisterLink element not found");
   }
 
   // Show login form
   if (showLoginLink) {
+    console.log("Adding click listener to showLoginLink");
     showLoginLink.addEventListener("click", (e) => {
       e.preventDefault();
-      registerSection.classList.add("hidden");
-      loginSection.classList.remove("hidden");
+      if (registerSection && loginSection) {
+        registerSection.classList.add("hidden");
+        loginSection.classList.remove("hidden");
+      }
     });
+  } else {
+    console.warn("showLoginLink element not found");
   }
 
   // Login button
@@ -169,10 +194,13 @@ function setupEventListeners() {
 
   // Forgot password link
   if (forgotPasswordLink) {
+    console.log("Adding click listener to forgotPasswordLink");
     forgotPasswordLink.addEventListener("click", (e) => {
       e.preventDefault();
       handlePasswordReset();
     });
+  } else {
+    console.warn("forgotPasswordLink element not found");
   }
 }
 
@@ -393,8 +421,8 @@ async function handleGoogleRegistration() {
   }
 }
 
-// Authentication state change listener
-auth.onAuthStateChanged(async (user) => {
+// Authentication state change handler function
+async function handleAuthStateChanged(user) {
   if (user) {
     console.log("User is signed in:", user.email);
 
@@ -467,7 +495,7 @@ auth.onAuthStateChanged(async (user) => {
       registerGoogleBtn.disabled = false;
     }
   }
-});
+}
 
 // Check if company profile exists
 async function checkCompanyProfileExists(userId) {
@@ -870,20 +898,34 @@ function showModal(title, content) {
   modalTitle.className = "modal-title";
   modalTitle.textContent = title;
 
-  document.getElementById("modal-body").innerHTML = "";
-  document.getElementById("modal-body").appendChild(modalTitle);
-  document
-    .getElementById("modal-body")
-    .insertAdjacentHTML("beforeend", content);
+  const modalBody = document.getElementById("modal-body");
+  if (modalBody) {
+    modalBody.innerHTML = "";
+    modalBody.appendChild(modalTitle);
+    modalBody.insertAdjacentHTML("beforeend", content);
+  } else {
+    console.error("Modal body element not found");
+  }
 
-  modal.classList.remove("hidden");
+  if (modal) {
+    modal.classList.remove("hidden");
 
-  // Add event listener to close button
-  document.querySelector(".close-btn").addEventListener("click", hideModal);
+    // Add event listener to close button
+    const closeBtn = document.querySelector(".close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", hideModal);
+    }
+  } else {
+    console.error("Modal element not found");
+  }
 }
 
 // Hide modal function
 function hideModal() {
   const modal = document.getElementById("modal");
-  modal.classList.add("hidden");
+  if (modal) {
+    modal.classList.add("hidden");
+  } else {
+    console.error("Modal element not found");
+  }
 }
