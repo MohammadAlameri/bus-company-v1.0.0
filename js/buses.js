@@ -127,7 +127,13 @@ if (
   }
 }
 
-const companiesRef = db.collection("companies").withConverter(companyConverter);
+// Check if companiesRef is defined, if not, define it
+if (typeof companiesRef === "undefined") {
+  console.log("Creating companiesRef as it was undefined");
+  window.companiesRef = db
+    .collection("companies")
+    .withConverter(companyConverter);
+}
 
 // Check if vehiclesRef is defined, if not, define it
 if (typeof vehiclesRef === "undefined") {
