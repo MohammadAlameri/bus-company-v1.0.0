@@ -14,6 +14,7 @@ let resendVerificationBtn;
 let checkVerificationBtn;
 let returnToLoginBtn;
 let forgotPasswordLink;
+//return
 
 // Wait for the document to be fully loaded before accessing DOM elements
 document.addEventListener("DOMContentLoaded", () => {
