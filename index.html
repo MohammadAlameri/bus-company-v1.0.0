@@ -28,7 +28,12 @@
                     </div>
                     <div class="input-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" placeholder="Enter your password">
+                        <div class="password-input-container">
+                            <input type="password" id="password" placeholder="Enter your password">
+                            <span class="password-toggle" onclick="togglePasswordVisibility('password')">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
                     </div>
                     <div class="forgot-password">
                         <a href="#" id="forgot-password">Forgot Password?</a>
@@ -64,11 +69,21 @@
                     </div>
                     <div class="input-group">
                         <label for="register-password">Password</label>
-                        <input type="password" id="register-password" placeholder="Enter password">
+                        <div class="password-input-container">
+                            <input type="password" id="register-password" placeholder="Enter password">
+                            <span class="password-toggle" onclick="togglePasswordVisibility('register-password')">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label for="register-confirm-password">Confirm Password</label>
-                        <input type="password" id="register-confirm-password" placeholder="Confirm password">
+                        <div class="password-input-container">
+                            <input type="password" id="register-confirm-password" placeholder="Confirm password">
+                            <span class="password-toggle" onclick="togglePasswordVisibility('register-confirm-password')">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
                     </div>
                     <button id="register-btn" class="primary-btn">Register</button>
                     <div class="divider">

@@ -16,6 +16,24 @@ let returnToLoginBtn;
 let forgotPasswordLink;
 //return
 
+// Toggle password visibility function
+function togglePasswordVisibility(inputId) {
+  const passwordInput = document.getElementById(inputId);
+  const icon = document.querySelector(
+    `[onclick="togglePasswordVisibility('${inputId}')"] i`
+  );
+
+  if (passwordInput.type === "password") {
+    passwordInput.type = "text";
+    icon.classList.remove("fa-eye");
+    icon.classList.add("fa-eye-slash");
+  } else {
+    passwordInput.type = "password";
+    icon.classList.remove("fa-eye-slash");
+    icon.classList.add("fa-eye");
+  }
+}
+
 // Wait for the document to be fully loaded before accessing DOM elements
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Document loaded - initializing DOM elements");
@@ -973,3 +991,6 @@ function hideModal() {
     console.error("Modal element not found");
   }
 }
+
+// Make the togglePasswordVisibility function globally available
+window.togglePasswordVisibility = togglePasswordVisibility;
