@@ -633,70 +633,54 @@ async function loadTimeOffData() {
 
       // Check if it's an index error
       if (indexError.message && indexError.message.includes("index")) {
-        // Provide a user-friendly error with the link to create the index
-        timeOffList.innerHTML = `
-          <div class="error-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h3>Missing Database Index</h3>
-            <p>The system needs a database configuration update to display time off records properly.</p>
-            <p>Please click the button below to create the required index:</p>
-            <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" 
-               target="_blank" 
-               class="btn btn-primary">Create Index</a>
-            <p class="mt-3">After creating the index, please wait a few minutes for it to be built, then click below:</p>
-            <button onclick="loadTimeOffData()" class="btn btn-secondary mt-2">Try Again</button>
-          </div>
-        `;
+        console.log("This is an index error. Attempting fallback query...");
 
-        // Attempt a fallback query without the sort - this may still work
         try {
-          console.log("Attempting fallback query without sorting");
+          // Try a simpler query without the sorting (which doesn't require the index)
           const fallbackRecords = await timeOffRef
             .where("companyId", "==", currentCompany.id)
             .get();
 
           if (!fallbackRecords.empty) {
-            console.log(`Fallback query found ${fallbackRecords.size} records`);
+            console.log(
+              `Fallback query successful! Found ${fallbackRecords.size} records`
+            );
 
-            // Process records without depending on the sort order
+            // Sort the results in JavaScript instead of in the query
+            const timeOffItems = [];
+            fallbackRecords.forEach((doc) => {
+              timeOffItems.push({
+                id: doc.id,
+                ...doc.data(),
+              });
+            });
+
+            // Sort by specificDay in descending order
+            timeOffItems.sort((a, b) => {
+              const getDate = (item) => {
+                if (!item.specificDay) return new Date(0);
+                if (typeof item.specificDay.toDate === "function") {
+                  return item.specificDay.toDate();
+                }
+                return new Date(item.specificDay);
+              };
+
+              return getDate(b) - getDate(a); // descending order
+            });
+
+            // Display the data with a warning about the index
             timeOffList.innerHTML = `
-              <div class="partial-results-warning">
-                <p><i class="fas fa-info-circle"></i> Showing unsorted results - Please create the index for proper sorting</p>
-                <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">Create Index</a>
+              <div class="info-banner" style="background: #fff3cd; padding: 10px; margin-bottom: 15px; border-radius: 4px; border-left: 4px solid #ffc107;">
+                <p><i class="fas fa-info-circle"></i> Using limited functionality mode - some sorting may not work correctly</p>
+                <p style="font-size: 0.9em;">To enable full functionality, <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">create the required database index</a>.</p>
               </div>
               <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
-              <div class="time-off-items">
-              </div>
+              <div class="time-off-items"></div>
             `;
 
-            const timeOffContainer =
-              timeOffList.querySelector(".time-off-items");
+            // Build the HTML for each time off item
             let timeOffHTML = "";
-
-            // Sort the records in memory since we can't do it in the query
-            const sortedRecords = Array.from(fallbackRecords.docs)
-              .map((doc) => ({ id: doc.id, ...doc.data() }))
-              .sort((a, b) => {
-                // Convert Firebase timestamps to JavaScript Dates for comparison
-                const dateA =
-                  a.specificDay && typeof a.specificDay.toDate === "function"
-                    ? a.specificDay.toDate()
-                    : a.specificDay
-                    ? new Date(a.specificDay)
-                    : new Date(0);
-
-                const dateB =
-                  b.specificDay && typeof b.specificDay.toDate === "function"
-                    ? b.specificDay.toDate()
-                    : b.specificDay
-                    ? new Date(b.specificDay)
-                    : new Date(0);
-
-                return dateB - dateA; // descending order
-              });
-
-            // Process and display each time off record
-            sortedRecords.forEach((timeOff) => {
+            timeOffItems.forEach((timeOff) => {
               // Format the date display
               let dateDisplay = "N/A";
               if (
@@ -751,10 +735,13 @@ async function loadTimeOffData() {
               `;
             });
 
-            if (timeOffHTML) {
+            // Add the HTML to the page
+            const timeOffContainer =
+              timeOffList.querySelector(".time-off-items");
+            if (timeOffContainer) {
               timeOffContainer.innerHTML = timeOffHTML;
 
-              // Add event listeners to the newly created buttons
+              // Add event listeners to the buttons
               document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
                 btn.addEventListener("click", () => {
                   showEditTimeOffModal(btn.dataset.id);
@@ -769,10 +756,30 @@ async function loadTimeOffData() {
                   });
                 });
             }
+
+            return; // Exit early since we've handled the data
+          } else {
+            console.log("Fallback query successful but no records found");
           }
         } catch (fallbackError) {
           console.error("Fallback query also failed:", fallbackError);
         }
+
+        // If we get here, either the fallback failed or there are no records
+        // Show the original index error message
+        timeOffList.innerHTML = `
+          <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Missing Database Index</h3>
+            <p>The system needs a database configuration update to display time off records properly.</p>
+            <p>Please click the button below to create the required index:</p>
+            <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" 
+               target="_blank" 
+               class="btn btn-primary">Create Index</a>
+            <p class="mt-3">After creating the index, please wait a few minutes for it to be built, then click below:</p>
+            <button onclick="loadTimeOffData()" class="btn btn-secondary mt-2">Try Again</button>
+          </div>
+        `;
       } else {
         // Handle other types of errors
         timeOffList.innerHTML = `
