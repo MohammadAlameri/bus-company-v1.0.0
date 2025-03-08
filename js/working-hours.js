@@ -417,23 +417,58 @@ async function loadTimeOffData() {
     console.warn("STARTING TIME OFF DATA LOAD - " + new Date().toISOString());
     console.log("Current company data:", JSON.stringify(currentCompany));
 
+    // Update the time off display with a table structure
     timeOffList.innerHTML = `
-      <div class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading time off records...</p>
-        <small>Company ID: ${currentCompany?.id || "N/A"}</small>
+      <div class="time-off-header">
+        <h3>Time Off Records</h3>
+        <button onclick="showAddTimeOffModal()" class="add-btn primary-btn">
+          <i class="fas fa-plus"></i> Add Time Off
+        </button>
+      </div>
+      <div class="table-container">
+        <table class="data-table" id="time-off-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Frequency</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="time-off-table-body">
+            <tr>
+              <td colspan="6" class="loading-row">
+                <div class="loading-state">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  <p>Loading time off records...</p>
+                  <small>Company ID: ${currentCompany?.id || "N/A"}</small>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     `;
+
+    // Add table styles
+    addTimeOffTableStyles();
 
     // STEP 3: Verify company data
     if (!currentCompany || !currentCompany.id) {
       console.error("ERROR: Missing company data", currentCompany);
-      timeOffList.innerHTML = `
-        <div class="error-state">
-          <i class="fas fa-exclamation-triangle"></i>
-          <p>Company data is missing or invalid</p>
-          <button onclick="location.reload()">Refresh Page</button>
-        </div>
+      const timeOffTableBody = document.getElementById("time-off-table-body");
+      timeOffTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="error-row">
+            <div class="error-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Company data is missing or invalid</p>
+              <button onclick="location.reload()">Refresh Page</button>
+            </div>
+          </td>
+        </tr>
       `;
       return;
     }
@@ -457,6 +492,7 @@ async function loadTimeOffData() {
 
     // STEP 5: Query for this specific company's records
     console.log(`Querying specifically for company ID: "${currentCompany.id}"`);
+    const timeOffTableBody = document.getElementById("time-off-table-body");
 
     try {
       const companyRecords = await timeOffRef
@@ -471,167 +507,52 @@ async function loadTimeOffData() {
       // STEP 6: Handle empty results
       if (companyRecords.empty) {
         console.warn("No records found for this company");
-        timeOffList.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-calendar-times"></i>
-            <p>No time off records found</p>
-            <small>Company ID: ${currentCompany.id}</small>
-            <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
-          </div>
+        timeOffTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-row">
+              <div class="empty-state">
+                <i class="fas fa-calendar-times"></i>
+                <p>No time off records found</p>
+                <small>Company ID: ${currentCompany.id}</small>
+              </div>
+            </td>
+          </tr>
         `;
         return;
       }
 
       // STEP 7: Process records one by one with careful error handling
       console.log("Building time off display HTML...");
-      let timeOffHTML = "";
+      timeOffTableBody.innerHTML = ""; // Clear loading indicator
+
       let recordCount = 0;
+
+      // Store records for potential filtering
+      window.allTimeOffRecords = [];
 
       companyRecords.forEach((doc) => {
         try {
           recordCount++;
           const timeOff = doc.data();
-          console.log(
-            `Processing record ${recordCount}:`,
-            doc.id,
-            JSON.stringify(timeOff)
-          );
+          timeOff.id = doc.id; // Ensure ID is included
 
-          // Get the specific day
-          let specificDayStr = "N/A";
-          try {
-            if (
-              timeOff.specificDay &&
-              typeof timeOff.specificDay.toDate === "function"
-            ) {
-              const specificDayObj = timeOff.specificDay.toDate();
-              specificDayStr = specificDayObj.toLocaleDateString();
-            } else if (timeOff.specificDay) {
-              const specificDayObj = new Date(timeOff.specificDay);
-              specificDayStr = specificDayObj.toLocaleDateString();
-            }
-          } catch (dateError) {
-            console.error("Date parsing error:", dateError);
-          }
+          // Store for filtering
+          window.allTimeOffRecords.push(timeOff);
 
-          // Format frequency and day of week
-          let frequencyDisplay = "";
-          if (timeOff.frequency === "once") {
-            frequencyDisplay = "One-time";
-          } else if (timeOff.frequency === "daily") {
-            frequencyDisplay = "Daily";
-          } else if (timeOff.frequency === "weekly") {
-            frequencyDisplay = `Weekly (${
-              timeOff.dayOfWeek || "Not specified"
-            })`;
-          } else {
-            frequencyDisplay = timeOff.frequency || "Not specified";
-          }
-
-          // Add this record to our HTML
-          timeOffHTML += `
-            <div class="time-off-item" data-id="${doc.id}">
-              <div class="time-off-header">
-                <h3>${timeOff.title || "Untitled"}</h3>
-                <span class="time-off-badge">${frequencyDisplay}</span>
-              </div>
-              <div class="time-off-details">
-                <div class="time-off-date">
-                  <i class="fas fa-calendar"></i>
-                  <span>${specificDayStr}</span>
-                </div>
-                <div class="time-off-time">
-                  <i class="fas fa-clock"></i>
-                  <span>${timeOff.startTime || "N/A"} - ${
-            timeOff.endTime || "N/A"
-          }</span>
-                </div>
-              </div>
-              <div class="time-off-actions">
-                <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
-                  <i class="fas fa-edit"></i>
-                </button>
-                <button class="icon-btn delete-time-off-btn" data-id="${
-                  doc.id
-                }">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </div>
-          `;
+          // Add to the table
+          addTimeOffToTable(timeOff);
         } catch (recordError) {
           console.error("Error processing record:", recordError);
         }
       });
 
-      // STEP 8: Update the UI with our generated HTML
-      console.log("Updating time off list HTML with generated content");
-      if (timeOffHTML) {
-        // Force update the UI even if there's a problem by using setTimeout
-        setTimeout(() => {
-          try {
-            timeOffList.innerHTML = timeOffHTML;
-            console.log(
-              "Successfully updated time off list with records:",
-              recordCount
-            );
+      console.log(`Successfully added ${recordCount} records to the table`);
 
-            // STEP 9: Add event listeners to the buttons
-            try {
-              const editButtons =
-                document.querySelectorAll(".edit-time-off-btn");
-              const deleteButtons = document.querySelectorAll(
-                ".delete-time-off-btn"
-              );
-
-              console.log(
-                `Adding event listeners to ${editButtons.length} edit buttons and ${deleteButtons.length} delete buttons`
-              );
-
-              editButtons.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                  console.log("Edit button clicked for:", btn.dataset.id);
-                  showEditTimeOffModal(btn.dataset.id);
-                });
-              });
-
-              deleteButtons.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                  console.log("Delete button clicked for:", btn.dataset.id);
-                  confirmDeleteTimeOff(btn.dataset.id);
-                });
-              });
-
-              console.log("All event listeners added successfully");
-            } catch (listenerError) {
-              console.error("Error adding event listeners:", listenerError);
-            }
-          } catch (updateError) {
-            console.error("Error updating time off list:", updateError);
-            timeOffList.innerHTML = `
-              <div class="error-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Error displaying time off records</p>
-                <small>${updateError.message}</small>
-                <button onclick="loadTimeOffData()">Try Again</button>
-              </div>
-            `;
-          }
-        }, 100); // Small delay to ensure the DOM is ready
-      } else {
-        console.warn("No HTML generated despite finding records");
-        timeOffList.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-exclamation-circle"></i>
-            <p>Could not display time off records</p>
-            <button onclick="loadTimeOffData()">Try Again</button>
-          </div>
-        `;
-      }
+      // Add event listeners to the buttons
+      addTimeOffActionListeners();
     } catch (indexError) {
       console.error("Index error in time off query:", indexError);
 
-      // Check if it's an index error
       if (indexError.message && indexError.message.includes("index")) {
         console.log("This is an index error. Attempting fallback query...");
 
@@ -668,152 +589,301 @@ async function loadTimeOffData() {
               return getDate(b) - getDate(a); // descending order
             });
 
-            // Display the data with a warning about the index
-            timeOffList.innerHTML = `
-              <div class="info-banner" style="background: #fff3cd; padding: 10px; margin-bottom: 15px; border-radius: 4px; border-left: 4px solid #ffc107;">
-                <p><i class="fas fa-info-circle"></i> Using limited functionality mode - some sorting may not work correctly</p>
-                <p style="font-size: 0.9em;">To enable full functionality, <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">create the required database index</a>.</p>
-              </div>
-              <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
-              <div class="time-off-items"></div>
-            `;
+            // Clear loading indicator
+            timeOffTableBody.innerHTML = "";
 
-            // Build the HTML for each time off item
-            let timeOffHTML = "";
-            timeOffItems.forEach((timeOff) => {
-              // Format the date display
-              let dateDisplay = "N/A";
-              if (
-                timeOff.specificDay &&
-                typeof timeOff.specificDay.toDate === "function"
-              ) {
-                const specificDayObj = timeOff.specificDay.toDate();
-                dateDisplay = specificDayObj.toLocaleDateString();
-              } else if (timeOff.specificDay) {
-                const specificDayObj = new Date(timeOff.specificDay);
-                dateDisplay = specificDayObj.toLocaleDateString();
-              }
-
-              // Format the frequency display
-              let frequencyDisplay = "N/A";
-              if (timeOff.frequency === "once") {
-                frequencyDisplay = "One-time";
-              } else if (timeOff.frequency === "daily") {
-                frequencyDisplay = "Daily";
-              } else if (timeOff.frequency === "weekly") {
-                frequencyDisplay = `Weekly (${
-                  timeOff.dayOfWeek || "Not specified"
-                })`;
-              } else {
-                frequencyDisplay = timeOff.frequency || "Not specified";
-              }
-
-              // Create the HTML for each time off record
-              timeOffHTML += `
-                <div class="time-off-item" data-id="${timeOff.id}">
-                  <div class="time-off-header">
-                    <h3>${timeOff.title || "Untitled"}</h3>
-                    <div class="time-off-actions">
-                      <button class="edit-time-off-btn" data-id="${timeOff.id}">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button class="delete-time-off-btn" data-id="${
-                        timeOff.id
-                      }">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="time-off-details">
-                    <p><strong>Date:</strong> ${dateDisplay}</p>
-                    <p><strong>Time:</strong> <span>${
-                      timeOff.startTime || "N/A"
-                    } - ${timeOff.endTime || "N/A"}</span></p>
-                    <p><strong>Frequency:</strong> ${frequencyDisplay}</p>
-                  </div>
+            // Add info banner about the index
+            const infoRow = document.createElement("tr");
+            infoRow.innerHTML = `
+              <td colspan="6" class="info-row">
+                <div class="info-banner">
+                  <p><i class="fas fa-info-circle"></i> Using limited functionality mode - some sorting may not work correctly</p>
+                  <p style="font-size: 0.9em;">To enable full functionality, <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">create the required database index</a>.</p>
                 </div>
-              `;
+              </td>
+            `;
+            timeOffTableBody.appendChild(infoRow);
+
+            // Store for filtering
+            window.allTimeOffRecords = timeOffItems;
+
+            // Add each record to the table
+            timeOffItems.forEach((timeOff) => {
+              addTimeOffToTable(timeOff);
             });
 
-            // Add the HTML to the page
-            const timeOffContainer =
-              timeOffList.querySelector(".time-off-items");
-            if (timeOffContainer) {
-              timeOffContainer.innerHTML = timeOffHTML;
-
-              // Add event listeners to the buttons
-              document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
-                btn.addEventListener("click", () => {
-                  showEditTimeOffModal(btn.dataset.id);
-                });
-              });
-
-              document
-                .querySelectorAll(".delete-time-off-btn")
-                .forEach((btn) => {
-                  btn.addEventListener("click", () => {
-                    confirmDeleteTimeOff(btn.dataset.id);
-                  });
-                });
-            }
+            // Add action button event listeners
+            addTimeOffActionListeners();
 
             return; // Exit early since we've handled the data
           } else {
             console.log("Fallback query successful but no records found");
+            timeOffTableBody.innerHTML = `
+              <tr>
+                <td colspan="6" class="empty-row">
+                  <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No time off records found</p>
+                    <small>Company ID: ${currentCompany.id}</small>
+                  </div>
+                </td>
+              </tr>
+            `;
           }
         } catch (fallbackError) {
           console.error("Fallback query also failed:", fallbackError);
+          timeOffTableBody.innerHTML = `
+            <tr>
+              <td colspan="6" class="error-row">
+                <div class="error-state">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <p>Failed to load time off records</p>
+                  <p>Error: ${fallbackError.message}</p>
+                  <button onclick="loadTimeOffData()">Try Again</button>
+                </div>
+              </td>
+            </tr>
+          `;
         }
-
-        // If we get here, either the fallback failed or there are no records
-        // Show the original index error message
-        timeOffList.innerHTML = `
-          <div class="error-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h3>Missing Database Index</h3>
-            <p>The system needs a database configuration update to display time off records properly.</p>
-            <p>Please click the button below to create the required index:</p>
-            <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" 
-               target="_blank" 
-               class="btn btn-primary">Create Index</a>
-            <p class="mt-3">After creating the index, please wait a few minutes for it to be built, then click below:</p>
-            <button onclick="loadTimeOffData()" class="btn btn-secondary mt-2">Try Again</button>
-          </div>
-        `;
       } else {
         // Handle other types of errors
-        timeOffList.innerHTML = `
-          <div class="error-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>Failed to load time off records</p>
-            <p>Error: ${indexError.message}</p>
-            <button onclick="loadTimeOffData()">Try Again</button>
-          </div>
+        timeOffTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="error-row">
+              <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load time off records</p>
+                <p>Error: ${indexError.message}</p>
+                <button onclick="loadTimeOffData()">Try Again</button>
+              </div>
+            </td>
+          </tr>
         `;
       }
     }
   } catch (error) {
     console.error("CRITICAL ERROR in loadTimeOffData:", error);
-
-    // Try to show an error message even if there are other issues
-    try {
-      const timeOffList = document.getElementById("time-off-list");
-      if (timeOffList) {
-        timeOffList.innerHTML = `
-          <div class="error-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>Failed to load time off records</p>
-            <small>${error.message}</small>
-            <button onclick="loadTimeOffData()">Try Again</button>
-          </div>
-        `;
-      } else {
-        alert("Critical error loading time off data: " + error.message);
-      }
-    } catch (finalError) {
-      alert("Fatal error in time off system: " + error.message);
+    const timeOffTableBody = document.getElementById("time-off-table-body");
+    if (timeOffTableBody) {
+      timeOffTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="error-row">
+            <div class="error-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>An unexpected error occurred while loading time off records</p>
+              <p>Error: ${error.message}</p>
+              <button onclick="loadTimeOffData()">Try Again</button>
+            </div>
+          </td>
+        </tr>
+      `;
     }
   }
+}
+
+// Add CSS for the time off table styling
+function addTimeOffTableStyles() {
+  // Check if styles already exist
+  if (document.getElementById("time-off-table-styles")) return;
+
+  const styleElement = document.createElement("style");
+  styleElement.id = "time-off-table-styles";
+  styleElement.textContent = `
+    .time-off-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .data-table thead th {
+      background-color: #f8f9fa;
+      color: #333;
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .data-table tbody td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #f1f1f1;
+      color: #333;
+    }
+    
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .data-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .table-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .table-actions button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #4a6cf7;
+      font-size: 16px;
+      transition: color 0.2s;
+    }
+    
+    .table-actions button:hover {
+      color: #3a5bd7;
+    }
+    
+    .delete-time-off-btn:hover {
+      color: #dc3545 !important;
+    }
+    
+    .loading-row, .error-row, .empty-row, .info-row {
+      text-align: center;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status-upcoming {
+      background-color: #e6f7ff;
+      color: #0086f9;
+    }
+    
+    .status-past {
+      background-color: #f9e6e6;
+      color: #c9302c;
+    }
+    
+    .past-record {
+      opacity: 0.7;
+    }
+    
+    .info-banner {
+      background-color: #fff3cd;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      border-left: 4px solid #ffc107;
+      text-align: left;
+    }
+  `;
+
+  document.head.appendChild(styleElement);
+}
+
+// Add a time off record to the table
+function addTimeOffToTable(timeOff) {
+  const timeOffTableBody = document.getElementById("time-off-table-body");
+  if (!timeOffTableBody) return;
+
+  // Format date
+  let formattedDate = "N/A";
+  if (timeOff.specificDay) {
+    const date = timeOff.specificDay.toDate
+      ? timeOff.specificDay.toDate()
+      : new Date(timeOff.specificDay);
+
+    formattedDate = date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  // Format time
+  const timeDisplay =
+    timeOff.startTime && timeOff.endTime
+      ? `${timeOff.startTime} - ${timeOff.endTime}`
+      : timeOff.startTime || timeOff.endTime || "N/A";
+
+  // Format frequency
+  let frequencyDisplay = "N/A";
+  if (timeOff.frequency === "once") {
+    frequencyDisplay = "One-time";
+  } else if (timeOff.frequency === "daily") {
+    frequencyDisplay = "Daily";
+  } else if (timeOff.frequency === "weekly") {
+    frequencyDisplay = `Weekly (${timeOff.dayOfWeek || "Not specified"})`;
+  } else {
+    frequencyDisplay = timeOff.frequency || "Not specified";
+  }
+
+  // Determine status (past or upcoming)
+  let isUpcoming = true;
+  if (timeOff.specificDay) {
+    const date = timeOff.specificDay.toDate
+      ? timeOff.specificDay.toDate()
+      : new Date(timeOff.specificDay);
+    isUpcoming = date >= new Date();
+  }
+  const statusDisplay = isUpcoming ? "Upcoming" : "Past";
+  const statusClass = isUpcoming ? "status-upcoming" : "status-past";
+
+  // Create table row
+  const tr = document.createElement("tr");
+  tr.setAttribute("data-id", timeOff.id);
+
+  if (!isUpcoming) {
+    tr.classList.add("past-record");
+  }
+
+  tr.innerHTML = `
+    <td>${timeOff.title || "Untitled"}</td>
+    <td>${formattedDate}</td>
+    <td>${timeDisplay}</td>
+    <td>${frequencyDisplay}</td>
+    <td><span class="status-badge ${statusClass}">${statusDisplay}</span></td>
+    <td>
+      <div class="table-actions">
+        <button class="edit-time-off-btn" data-id="${timeOff.id}">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button class="delete-time-off-btn" data-id="${timeOff.id}">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </td>
+  `;
+
+  timeOffTableBody.appendChild(tr);
+}
+
+// Add event listeners to time off action buttons
+function addTimeOffActionListeners() {
+  // Edit buttons
+  document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const timeOffId = btn.getAttribute("data-id");
+      showEditTimeOffModal(timeOffId);
+    });
+  });
+
+  // Delete buttons
+  document.querySelectorAll(".delete-time-off-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const timeOffId = btn.getAttribute("data-id");
+      confirmDeleteTimeOff(timeOffId);
+    });
+  });
 }
 
 // Show add time off modal
@@ -1217,217 +1287,3 @@ async function deleteTimeOff(timeOffId) {
     showMessage(`Error deleting time off: ${error.message}`, "error");
   }
 }
-
-// Add styles for working hours section
-const workingHoursStyles = document.createElement("style");
-workingHoursStyles.textContent = `
-    .working-hours-container {
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    
-    .working-hours-tabs {
-        display: flex;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .tab-btn {
-        padding: 12px 20px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-weight: 500;
-        color: #666;
-        position: relative;
-    }
-    
-    .tab-btn.active {
-        color: #4361ee;
-    }
-    
-    .tab-btn.active::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background-color: #4361ee;
-    }
-    
-    .tab-content {
-        display: none;
-        padding: 20px;
-    }
-    
-    .tab-content.active {
-        display: block;
-    }
-    
-    .working-hours-form {
-        max-width: 800px;
-    }
-    
-    .weekday-hours {
-        margin-bottom: 20px;
-    }
-    
-    .weekday-row {
-        display: flex;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .weekday-row:last-child {
-        border-bottom: none;
-    }
-    
-    .weekday-name {
-        width: 120px;
-        font-weight: 500;
-    }
-    
-    .weekday-status {
-        width: 120px;
-        display: flex;
-        align-items: center;
-    }
-    
-    .status-text {
-        margin-left: 10px;
-        font-size: 14px;
-    }
-    
-    .weekday-times {
-        flex: 1;
-    }
-    
-    .time-input-group {
-        display: flex;
-        align-items: center;
-    }
-    
-    .time-input-group span {
-        margin: 0 10px;
-    }
-    
-    .time-input {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        width: 120px;
-    }
-    
-    /* Switch styles */
-    .switch {
-        position: relative;
-        display: inline-block;
-        width: 50px;
-        height: 24px;
-    }
-    
-    .switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    
-    .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-    }
-    
-    .slider:before {
-        position: absolute;
-        content: "";
-        height: 16px;
-        width: 16px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        transition: .4s;
-    }
-    
-    input:checked + .slider {
-        background-color: #4361ee;
-    }
-    
-    input:focus + .slider {
-        box-shadow: 0 0 1px #4361ee;
-    }
-    
-    input:checked + .slider:before {
-        transform: translateX(26px);
-    }
-    
-    .slider.round {
-        border-radius: 24px;
-    }
-    
-    .slider.round:before {
-        border-radius: 50%;
-    }
-    
-    /* Time off styles */
-    .time-off-container {
-        padding: 10px 0;
-    }
-    
-    .time-off-list {
-        margin-bottom: 20px;
-    }
-    
-    .time-off-item {
-        display: flex;
-        align-items: center;
-        padding: 15px;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .time-off-date {
-        width: 250px;
-    }
-    
-    .time-off-date span {
-        margin: 0 5px;
-    }
-    
-    .time-off-reason {
-        flex: 1;
-        padding: 0 15px;
-    }
-    
-    .time-off-actions {
-        display: flex;
-    }
-    
-    .time-off-actions button {
-        margin-left: 10px;
-    }
-    
-    .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-        color: #999;
-    }
-    
-    .empty-state i {
-        font-size: 48px;
-        margin-bottom: 15px;
-    }
-`;
-
-document.head.appendChild(workingHoursStyles);

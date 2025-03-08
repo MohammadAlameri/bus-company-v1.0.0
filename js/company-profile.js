@@ -180,7 +180,6 @@ function showEditProfileModal() {
         <input type="text" id="edit-company-name" value="${
           currentCompany.name || ""
         }" required>
-        <small class="form-helper-text">This name will be displayed to all users</small>
       </div>
       
       <div class="form-group">
@@ -188,7 +187,6 @@ function showEditProfileModal() {
         <input type="tel" id="edit-company-phone" value="${
           currentCompany.phoneNumber || ""
         }" placeholder="78xxxxxxx">
-        <small class="form-helper-text">Phone number must start with 78, 77, 70, 71, or 73 and be 9 digits in total</small>
       </div>
       
       <div class="form-section-heading">
@@ -204,7 +202,6 @@ function showEditProfileModal() {
           }" placeholder="Enter your bank account number">
           <i class="fas fa-university"></i>
         </div>
-        <small class="form-helper-text">Your company's bank account for financial transactions. Should be 8-20 digits.</small>
       </div>
       
       <div class="form-section-heading">
@@ -216,7 +213,6 @@ function showEditProfileModal() {
         <textarea id="edit-company-bio" rows="3" placeholder="Describe your company in a few sentences">${
           currentCompany.bio || ""
         }</textarea>
-        <small class="form-helper-text">A brief description of your company that will be shown to customers</small>
       </div>
       
       <div class="form-group">
@@ -276,13 +272,6 @@ function showEditProfileModal() {
   // Add custom styling for the enhanced form
   const styleElement = document.createElement("style");
   styleElement.textContent = `
-    .form-helper-text {
-      display: block;
-      font-size: 12px;
-      color: #6c757d;
-      margin-top: 5px;
-    }
-    
     .form-section-heading {
       margin: 20px 0 15px;
       padding-bottom: 5px;
@@ -514,7 +503,8 @@ function showEditAddressModal() {
 function showAddressForm(addressData) {
   const modalContent = `
         <div class="edit-address-form">
-            <div class="address-form-description">
+            <div class="form-section-heading">
+                <h4>Location Details</h4>
                 <p>Update your company's physical location information. Fields marked with * are required.</p>
             </div>
 
@@ -524,7 +514,6 @@ function showAddressForm(addressData) {
                     <input type="text" id="edit-company-street-name" placeholder="Main Street" value="${
                       addressData.streetName || ""
                     }" required>
-                    <small class="form-helper-text">The name of the street where your company is located</small>
                 </div>
                 <div class="form-group">
                     <label for="edit-company-street-number">Building/House Number</label>
@@ -561,13 +550,12 @@ function showAddressForm(addressData) {
                     <input type="text" id="edit-company-next-to" placeholder="Near Central Bank" value="${
                       addressData.nextTo || ""
                     }">
-                    <small class="form-helper-text">A nearby landmark to help locate your business</small>
                 </div>
             </div>
             
-            <div class="form-section-divider">
+            <div class="form-section-heading">
                 <h4>Map Location *</h4>
-                <p class="map-instructions">Pin your exact location on the map or use your current location</p>
+                <p>Pin your exact location on the map or use your current location</p>
             </div>
             
             <div class="map-section">
@@ -619,25 +607,51 @@ function showAddressForm(addressData) {
     .edit-address-form {
         max-width: 800px;
         margin: 0 auto;
+        padding: 0 15px;
     }
     
-    .address-form-description {
-        margin-bottom: 20px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-left: 4px solid #4a6cf7;
-        border-radius: 4px;
-    }
-    
-    .form-section-divider {
-        margin: 20px 0;
-        padding-bottom: 10px;
+    .form-section-heading {
+        margin: 20px 0 15px;
+        padding-bottom: 5px;
         border-bottom: 1px solid #e0e0e0;
     }
     
-    .form-section-divider h4 {
+    .form-section-heading h4 {
         margin-bottom: 5px;
         color: #333;
+    }
+    
+    .form-section-heading p {
+        margin: 0;
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        font-size: 14px;
     }
     
     .map-instructions {
@@ -691,13 +705,6 @@ function showAddressForm(addressData) {
         color: #dc3545;
     }
     
-    .form-helper-text {
-        display: block;
-        margin-top: 4px;
-        font-size: 12px;
-        color: #6c757d;
-    }
-    
     .form-footer {
         display: flex;
         justify-content: space-between;
@@ -709,7 +716,7 @@ function showAddressForm(addressData) {
     .cancel-btn {
         background-color: #f8f9fa;
         border: 1px solid #ddd;
-        padding: 10px 15px;
+        padding: 8px 15px;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.2s;
@@ -723,7 +730,7 @@ function showAddressForm(addressData) {
         background-color: #4a6cf7;
         color: white;
         border: none;
-        padding: 10px 20px;
+        padding: 8px 20px;
         border-radius: 4px;
         cursor: pointer;
         font-weight: 500;
@@ -747,6 +754,7 @@ function showAddressForm(addressData) {
     @media (max-width: 768px) {
         .form-row {
             flex-direction: column;
+            gap: 10px;
         }
         
         .form-group {
@@ -818,9 +826,35 @@ function validateAndUpdateAddress() {
   }
 
   if (isValid) {
+    // Disable the save button to prevent multiple submissions
+    const saveButton = document.getElementById("save-address-btn");
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    // Process the form
     updateCompanyAddress();
   } else {
     showMessage("Please complete all required fields marked with *", "error");
+
+    // Add animation keyframes if they don't exist
+    if (!document.getElementById("validation-animations")) {
+      const styleSheet = document.createElement("style");
+      styleSheet.id = "validation-animations";
+      styleSheet.textContent = `
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `;
+      document.head.appendChild(styleSheet);
+    }
   }
 }
 
@@ -1171,6 +1205,9 @@ function getCurrentLocation() {
 // Update company address
 async function updateCompanyAddress() {
   try {
+    // Show loading indicator
+    showLoadingIndicator();
+
     // Get form values
     const streetName = document
       .getElementById("edit-company-street-name")
@@ -1189,6 +1226,7 @@ async function updateCompanyAddress() {
 
     // Validate required fields
     if (!streetName || !city || !country) {
+      hideLoadingIndicator();
       showMessage("Street name, city, and country are required", "error");
       return;
     }
@@ -1197,7 +1235,7 @@ async function updateCompanyAddress() {
     let latLon = null;
     const latLngText = document.getElementById("lat-lng-display").textContent;
     if (latLngText && latLngText !== "No coordinates selected") {
-      const matches = latLngText.match(/Lat: ([-\d.]+), Lng: ([-\d.]+)/);
+      const matches = latLngText.match(/Coordinates set: ([-\d.]+), ([-\d.]+)/);
       if (matches && matches.length === 3) {
         latLon = {
           latitude: parseFloat(matches[1]),
@@ -1207,6 +1245,7 @@ async function updateCompanyAddress() {
     }
 
     if (!latLon) {
+      hideLoadingIndicator();
       showMessage("Please select a location on the map", "error");
       return;
     }
@@ -1259,6 +1298,9 @@ async function updateCompanyAddress() {
       setCurrentCompany(currentCompany);
     }
 
+    // Hide loading indicator
+    hideLoadingIndicator();
+
     // Hide modal and reload profile
     hideModal();
     loadCompanyProfile();
@@ -1269,6 +1311,7 @@ async function updateCompanyAddress() {
     showMessage("Address updated successfully", "success");
   } catch (error) {
     console.error("Error updating address:", error);
+    hideLoadingIndicator();
     showMessage(`Error updating address: ${error.message}`, "error");
   }
 }
