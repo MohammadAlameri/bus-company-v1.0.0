@@ -457,169 +457,333 @@ async function loadTimeOffData() {
 
     // STEP 5: Query for this specific company's records
     console.log(`Querying specifically for company ID: "${currentCompany.id}"`);
-    const companyRecords = await timeOffRef
-      .where("companyId", "==", currentCompany.id)
-      .orderBy("specificDay", "desc")
-      .get();
 
-    console.log(
-      `Found ${companyRecords.size} records for company ID ${currentCompany.id}`
-    );
+    try {
+      const companyRecords = await timeOffRef
+        .where("companyId", "==", currentCompany.id)
+        .orderBy("specificDay", "desc")
+        .get();
 
-    // STEP 6: Handle empty results
-    if (companyRecords.empty) {
-      console.warn("No records found for this company");
-      timeOffList.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-calendar-times"></i>
-          <p>No time off records found</p>
-          <small>Company ID: ${currentCompany.id}</small>
-          <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
-        </div>
-      `;
-      return;
-    }
+      console.log(
+        `Found ${companyRecords.size} records for company ID ${currentCompany.id}`
+      );
 
-    // STEP 7: Process records one by one with careful error handling
-    console.log("Building time off display HTML...");
-    let timeOffHTML = "";
-    let recordCount = 0;
-
-    companyRecords.forEach((doc) => {
-      try {
-        recordCount++;
-        const timeOff = doc.data();
-        console.log(
-          `Processing record ${recordCount}:`,
-          doc.id,
-          JSON.stringify(timeOff)
-        );
-
-        // Get the specific day
-        let specificDayStr = "N/A";
-        try {
-          if (
-            timeOff.specificDay &&
-            typeof timeOff.specificDay.toDate === "function"
-          ) {
-            const specificDayObj = timeOff.specificDay.toDate();
-            specificDayStr = specificDayObj.toLocaleDateString();
-          } else if (timeOff.specificDay) {
-            const specificDayObj = new Date(timeOff.specificDay);
-            specificDayStr = specificDayObj.toLocaleDateString();
-          }
-        } catch (dateError) {
-          console.error("Date parsing error:", dateError);
-        }
-
-        // Format frequency and day of week
-        let frequencyDisplay = "";
-        if (timeOff.frequency === "once") {
-          frequencyDisplay = "One-time";
-        } else if (timeOff.frequency === "daily") {
-          frequencyDisplay = "Daily";
-        } else if (timeOff.frequency === "weekly") {
-          frequencyDisplay = `Weekly (${timeOff.dayOfWeek || "Not specified"})`;
-        } else {
-          frequencyDisplay = timeOff.frequency || "Not specified";
-        }
-
-        // Add this record to our HTML
-        timeOffHTML += `
-          <div class="time-off-item" data-id="${doc.id}">
-            <div class="time-off-header">
-              <h3>${timeOff.title || "Untitled"}</h3>
-              <span class="time-off-badge">${frequencyDisplay}</span>
-            </div>
-            <div class="time-off-details">
-              <div class="time-off-date">
-                <i class="fas fa-calendar"></i>
-                <span>${specificDayStr}</span>
-              </div>
-              <div class="time-off-time">
-                <i class="fas fa-clock"></i>
-                <span>${timeOff.startTime || "N/A"} - ${
-          timeOff.endTime || "N/A"
-        }</span>
-              </div>
-            </div>
-            <div class="time-off-actions">
-              <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="icon-btn delete-time-off-btn" data-id="${doc.id}">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
+      // STEP 6: Handle empty results
+      if (companyRecords.empty) {
+        console.warn("No records found for this company");
+        timeOffList.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-calendar-times"></i>
+            <p>No time off records found</p>
+            <small>Company ID: ${currentCompany.id}</small>
+            <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
           </div>
         `;
-      } catch (recordError) {
-        console.error("Error processing record:", recordError);
+        return;
       }
-    });
 
-    // STEP 8: Update the UI with our generated HTML
-    console.log("Updating time off list HTML with generated content");
-    if (timeOffHTML) {
-      // Force update the UI even if there's a problem by using setTimeout
-      setTimeout(() => {
+      // STEP 7: Process records one by one with careful error handling
+      console.log("Building time off display HTML...");
+      let timeOffHTML = "";
+      let recordCount = 0;
+
+      companyRecords.forEach((doc) => {
         try {
-          timeOffList.innerHTML = timeOffHTML;
+          recordCount++;
+          const timeOff = doc.data();
           console.log(
-            "Successfully updated time off list with records:",
-            recordCount
+            `Processing record ${recordCount}:`,
+            doc.id,
+            JSON.stringify(timeOff)
           );
 
-          // STEP 9: Add event listeners to the buttons
+          // Get the specific day
+          let specificDayStr = "N/A";
           try {
-            const editButtons = document.querySelectorAll(".edit-time-off-btn");
-            const deleteButtons = document.querySelectorAll(
-              ".delete-time-off-btn"
-            );
-
-            console.log(
-              `Adding event listeners to ${editButtons.length} edit buttons and ${deleteButtons.length} delete buttons`
-            );
-
-            editButtons.forEach((btn) => {
-              btn.addEventListener("click", () => {
-                console.log("Edit button clicked for:", btn.dataset.id);
-                showEditTimeOffModal(btn.dataset.id);
-              });
-            });
-
-            deleteButtons.forEach((btn) => {
-              btn.addEventListener("click", () => {
-                console.log("Delete button clicked for:", btn.dataset.id);
-                confirmDeleteTimeOff(btn.dataset.id);
-              });
-            });
-
-            console.log("All event listeners added successfully");
-          } catch (listenerError) {
-            console.error("Error adding event listeners:", listenerError);
+            if (
+              timeOff.specificDay &&
+              typeof timeOff.specificDay.toDate === "function"
+            ) {
+              const specificDayObj = timeOff.specificDay.toDate();
+              specificDayStr = specificDayObj.toLocaleDateString();
+            } else if (timeOff.specificDay) {
+              const specificDayObj = new Date(timeOff.specificDay);
+              specificDayStr = specificDayObj.toLocaleDateString();
+            }
+          } catch (dateError) {
+            console.error("Date parsing error:", dateError);
           }
-        } catch (updateError) {
-          console.error("Error updating time off list:", updateError);
-          timeOffList.innerHTML = `
-            <div class="error-state">
-              <i class="fas fa-exclamation-triangle"></i>
-              <p>Error displaying time off records</p>
-              <small>${updateError.message}</small>
-              <button onclick="loadTimeOffData()">Try Again</button>
+
+          // Format frequency and day of week
+          let frequencyDisplay = "";
+          if (timeOff.frequency === "once") {
+            frequencyDisplay = "One-time";
+          } else if (timeOff.frequency === "daily") {
+            frequencyDisplay = "Daily";
+          } else if (timeOff.frequency === "weekly") {
+            frequencyDisplay = `Weekly (${
+              timeOff.dayOfWeek || "Not specified"
+            })`;
+          } else {
+            frequencyDisplay = timeOff.frequency || "Not specified";
+          }
+
+          // Add this record to our HTML
+          timeOffHTML += `
+            <div class="time-off-item" data-id="${doc.id}">
+              <div class="time-off-header">
+                <h3>${timeOff.title || "Untitled"}</h3>
+                <span class="time-off-badge">${frequencyDisplay}</span>
+              </div>
+              <div class="time-off-details">
+                <div class="time-off-date">
+                  <i class="fas fa-calendar"></i>
+                  <span>${specificDayStr}</span>
+                </div>
+                <div class="time-off-time">
+                  <i class="fas fa-clock"></i>
+                  <span>${timeOff.startTime || "N/A"} - ${
+            timeOff.endTime || "N/A"
+          }</span>
+                </div>
+              </div>
+              <div class="time-off-actions">
+                <button class="icon-btn edit-time-off-btn" data-id="${doc.id}">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="icon-btn delete-time-off-btn" data-id="${
+                  doc.id
+                }">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
           `;
+        } catch (recordError) {
+          console.error("Error processing record:", recordError);
         }
-      }, 100); // Small delay to ensure the DOM is ready
-    } else {
-      console.warn("No HTML generated despite finding records");
-      timeOffList.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-exclamation-circle"></i>
-          <p>Could not display time off records</p>
-          <button onclick="loadTimeOffData()">Try Again</button>
-        </div>
-      `;
+      });
+
+      // STEP 8: Update the UI with our generated HTML
+      console.log("Updating time off list HTML with generated content");
+      if (timeOffHTML) {
+        // Force update the UI even if there's a problem by using setTimeout
+        setTimeout(() => {
+          try {
+            timeOffList.innerHTML = timeOffHTML;
+            console.log(
+              "Successfully updated time off list with records:",
+              recordCount
+            );
+
+            // STEP 9: Add event listeners to the buttons
+            try {
+              const editButtons =
+                document.querySelectorAll(".edit-time-off-btn");
+              const deleteButtons = document.querySelectorAll(
+                ".delete-time-off-btn"
+              );
+
+              console.log(
+                `Adding event listeners to ${editButtons.length} edit buttons and ${deleteButtons.length} delete buttons`
+              );
+
+              editButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                  console.log("Edit button clicked for:", btn.dataset.id);
+                  showEditTimeOffModal(btn.dataset.id);
+                });
+              });
+
+              deleteButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                  console.log("Delete button clicked for:", btn.dataset.id);
+                  confirmDeleteTimeOff(btn.dataset.id);
+                });
+              });
+
+              console.log("All event listeners added successfully");
+            } catch (listenerError) {
+              console.error("Error adding event listeners:", listenerError);
+            }
+          } catch (updateError) {
+            console.error("Error updating time off list:", updateError);
+            timeOffList.innerHTML = `
+              <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Error displaying time off records</p>
+                <small>${updateError.message}</small>
+                <button onclick="loadTimeOffData()">Try Again</button>
+              </div>
+            `;
+          }
+        }, 100); // Small delay to ensure the DOM is ready
+      } else {
+        console.warn("No HTML generated despite finding records");
+        timeOffList.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>Could not display time off records</p>
+            <button onclick="loadTimeOffData()">Try Again</button>
+          </div>
+        `;
+      }
+    } catch (indexError) {
+      console.error("Index error in time off query:", indexError);
+
+      // Check if it's an index error
+      if (indexError.message && indexError.message.includes("index")) {
+        // Provide a user-friendly error with the link to create the index
+        timeOffList.innerHTML = `
+          <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Missing Database Index</h3>
+            <p>The system needs a database configuration update to display time off records properly.</p>
+            <p>Please click the button below to create the required index:</p>
+            <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" 
+               target="_blank" 
+               class="btn btn-primary">Create Index</a>
+            <p class="mt-3">After creating the index, please wait a few minutes for it to be built, then click below:</p>
+            <button onclick="loadTimeOffData()" class="btn btn-secondary mt-2">Try Again</button>
+          </div>
+        `;
+
+        // Attempt a fallback query without the sort - this may still work
+        try {
+          console.log("Attempting fallback query without sorting");
+          const fallbackRecords = await timeOffRef
+            .where("companyId", "==", currentCompany.id)
+            .get();
+
+          if (!fallbackRecords.empty) {
+            console.log(`Fallback query found ${fallbackRecords.size} records`);
+
+            // Process records without depending on the sort order
+            timeOffList.innerHTML = `
+              <div class="partial-results-warning">
+                <p><i class="fas fa-info-circle"></i> Showing unsorted results - Please create the index for proper sorting</p>
+                <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">Create Index</a>
+              </div>
+              <button onclick="showAddTimeOffModal()" class="add-btn">Add Time Off</button>
+              <div class="time-off-items">
+              </div>
+            `;
+
+            const timeOffContainer =
+              timeOffList.querySelector(".time-off-items");
+            let timeOffHTML = "";
+
+            // Sort the records in memory since we can't do it in the query
+            const sortedRecords = Array.from(fallbackRecords.docs)
+              .map((doc) => ({ id: doc.id, ...doc.data() }))
+              .sort((a, b) => {
+                // Convert Firebase timestamps to JavaScript Dates for comparison
+                const dateA =
+                  a.specificDay && typeof a.specificDay.toDate === "function"
+                    ? a.specificDay.toDate()
+                    : a.specificDay
+                    ? new Date(a.specificDay)
+                    : new Date(0);
+
+                const dateB =
+                  b.specificDay && typeof b.specificDay.toDate === "function"
+                    ? b.specificDay.toDate()
+                    : b.specificDay
+                    ? new Date(b.specificDay)
+                    : new Date(0);
+
+                return dateB - dateA; // descending order
+              });
+
+            // Process and display each time off record
+            sortedRecords.forEach((timeOff) => {
+              // Format the date display
+              let dateDisplay = "N/A";
+              if (
+                timeOff.specificDay &&
+                typeof timeOff.specificDay.toDate === "function"
+              ) {
+                const specificDayObj = timeOff.specificDay.toDate();
+                dateDisplay = specificDayObj.toLocaleDateString();
+              } else if (timeOff.specificDay) {
+                const specificDayObj = new Date(timeOff.specificDay);
+                dateDisplay = specificDayObj.toLocaleDateString();
+              }
+
+              // Format the frequency display
+              let frequencyDisplay = "N/A";
+              if (timeOff.frequency === "once") {
+                frequencyDisplay = "One-time";
+              } else if (timeOff.frequency === "daily") {
+                frequencyDisplay = "Daily";
+              } else if (timeOff.frequency === "weekly") {
+                frequencyDisplay = `Weekly (${
+                  timeOff.dayOfWeek || "Not specified"
+                })`;
+              } else {
+                frequencyDisplay = timeOff.frequency || "Not specified";
+              }
+
+              // Create the HTML for each time off record
+              timeOffHTML += `
+                <div class="time-off-item" data-id="${timeOff.id}">
+                  <div class="time-off-header">
+                    <h3>${timeOff.title || "Untitled"}</h3>
+                    <div class="time-off-actions">
+                      <button class="edit-time-off-btn" data-id="${timeOff.id}">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="delete-time-off-btn" data-id="${
+                        timeOff.id
+                      }">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="time-off-details">
+                    <p><strong>Date:</strong> ${dateDisplay}</p>
+                    <p><strong>Time:</strong> <span>${
+                      timeOff.startTime || "N/A"
+                    } - ${timeOff.endTime || "N/A"}</span></p>
+                    <p><strong>Frequency:</strong> ${frequencyDisplay}</p>
+                  </div>
+                </div>
+              `;
+            });
+
+            if (timeOffHTML) {
+              timeOffContainer.innerHTML = timeOffHTML;
+
+              // Add event listeners to the newly created buttons
+              document.querySelectorAll(".edit-time-off-btn").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                  showEditTimeOffModal(btn.dataset.id);
+                });
+              });
+
+              document
+                .querySelectorAll(".delete-time-off-btn")
+                .forEach((btn) => {
+                  btn.addEventListener("click", () => {
+                    confirmDeleteTimeOff(btn.dataset.id);
+                  });
+                });
+            }
+          }
+        } catch (fallbackError) {
+          console.error("Fallback query also failed:", fallbackError);
+        }
+      } else {
+        // Handle other types of errors
+        timeOffList.innerHTML = `
+          <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Failed to load time off records</p>
+            <p>Error: ${indexError.message}</p>
+            <button onclick="loadTimeOffData()">Try Again</button>
+          </div>
+        `;
+      }
     }
   } catch (error) {
     console.error("CRITICAL ERROR in loadTimeOffData:", error);

@@ -889,3 +889,77 @@ function setupFileInputPreviews(inputId) {
     });
   }
 }
+
+// Function to add a debug button for running database migrations
+function addDebugMigrationButton() {
+  const companyProfileContainer = document.querySelector(
+    ".company-profile-container"
+  );
+
+  if (!companyProfileContainer) return;
+
+  // Create debug section
+  const debugSection = document.createElement("div");
+  debugSection.className = "debug-section";
+  debugSection.style.marginTop = "40px";
+  debugSection.style.padding = "15px";
+  debugSection.style.border = "1px dashed #ccc";
+  debugSection.style.borderRadius = "5px";
+
+  // Add heading
+  const heading = document.createElement("h3");
+  heading.textContent = "Database Maintenance";
+  heading.style.marginBottom = "10px";
+  debugSection.appendChild(heading);
+
+  // Add description
+  const description = document.createElement("p");
+  description.textContent =
+    "If you're experiencing issues with missing ID fields in the database, click the button below to fix them.";
+  description.style.marginBottom = "15px";
+  debugSection.appendChild(description);
+
+  // Add button
+  const fixButton = document.createElement("button");
+  fixButton.textContent = "Fix Company IDs";
+  fixButton.className = "btn btn-secondary";
+  fixButton.addEventListener("click", async () => {
+    try {
+      fixButton.disabled = true;
+      fixButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fixing...';
+
+      // Run the fix function
+      const result = await window.fixAllCompanyDocuments();
+
+      if (result > 0) {
+        showMessage(
+          `Successfully fixed ${result} company documents`,
+          "success"
+        );
+      } else if (result === 0) {
+        showMessage(
+          "All company documents already have correct ID fields",
+          "info"
+        );
+      } else {
+        showMessage("Error fixing company documents, check console", "error");
+      }
+    } catch (error) {
+      console.error("Error running migration:", error);
+      showMessage(`Error: ${error.message}`, "error");
+    } finally {
+      fixButton.disabled = false;
+      fixButton.textContent = "Fix Company IDs";
+    }
+  });
+  debugSection.appendChild(fixButton);
+
+  // Add to page
+  companyProfileContainer.appendChild(debugSection);
+}
+
+// Call this when the company profile loads
+document.addEventListener("DOMContentLoaded", () => {
+  // Wait a bit for the profile to load
+  setTimeout(addDebugMigrationButton, 1000);
+});

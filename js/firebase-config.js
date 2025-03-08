@@ -449,10 +449,28 @@ async function logActivity(action, entityType, entityId) {
 
 // Initialize
 document.addEventListener("DOMContentLoaded", async function () {
-  await loadCurrentCompany();
+  try {
+    console.log("DOM Loaded: Initializing Firebase configuration...");
 
-  // Ensure companies have ID fields
-  await ensureCompaniesHaveIds();
+    // Load the current company first
+    await loadCurrentCompany();
+
+    // Run the migration to fix all company documents
+    console.log("Running company document migration...");
+    const updatedCount = await fixAllCompanyDocuments();
+
+    if (updatedCount > 0) {
+      console.log(
+        `Migration completed: Fixed ${updatedCount} company documents`
+      );
+    } else if (updatedCount === 0) {
+      console.log("Migration completed: No company documents needed fixing");
+    } else {
+      console.error("Migration failed, see previous errors");
+    }
+  } catch (error) {
+    console.error("Error during initialization:", error);
+  }
 });
 
 // Function to ensure all companies have ID fields
@@ -567,6 +585,58 @@ async function updateAllDocumentsWithIds() {
     throw error;
   }
 }
+
+// Function to run migration on ALL company documents to ensure they have ID fields
+async function fixAllCompanyDocuments() {
+  try {
+    console.log(
+      "Starting company document migration to ensure all have ID fields..."
+    );
+
+    // Get all company documents
+    const snapshot = await companiesRef.get();
+    console.log(`Found ${snapshot.size} company documents to check`);
+
+    // Create a batch for updates
+    const batch = db.batch();
+    let updateCount = 0;
+
+    // Check each document
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const docId = doc.id;
+
+      // If no ID field or mismatch, update it
+      if (!data.id || data.id !== docId) {
+        console.log(
+          `Company ${docId}: ${
+            data.id ? "Incorrect ID" : "Missing ID"
+          }, fixing...`
+        );
+        batch.update(doc.ref, { id: docId });
+        updateCount++;
+      }
+    });
+
+    // If we have updates to make
+    if (updateCount > 0) {
+      await batch.commit();
+      console.log(
+        `Successfully fixed ID field on ${updateCount} company documents`
+      );
+      return updateCount;
+    } else {
+      console.log("All company documents already have correct ID fields");
+      return 0;
+    }
+  } catch (error) {
+    console.error("Error fixing company documents:", error);
+    return -1;
+  }
+}
+
+// Expose this function globally for easy access from console
+window.fixAllCompanyDocuments = fixAllCompanyDocuments;
 
 // Export the function to make it available globally
 window.updateAllDocumentsWithIds = updateAllDocumentsWithIds;

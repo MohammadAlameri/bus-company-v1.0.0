@@ -733,6 +733,18 @@ async function createCompanyProfile(userId, name, email, authProvider) {
     const existingDoc = await companiesRef.doc(userId).get();
     if (existingDoc.exists) {
       console.log("Company profile already exists");
+
+      // Ensure ID field exists even on existing profiles
+      if (!existingDoc.data().id) {
+        await companiesRef.doc(userId).update({
+          id: userId,
+        });
+        console.log(
+          "Added missing ID field to existing company profile:",
+          userId
+        );
+      }
+
       return {
         id: userId,
         ...existingDoc.data(),
@@ -762,7 +774,6 @@ async function createCompanyProfile(userId, name, email, authProvider) {
 
     // Create company profile
     const companyData = {
-      id: userId,
       name,
       bio: "",
       email,
@@ -778,8 +789,16 @@ async function createCompanyProfile(userId, name, email, authProvider) {
       authProvider,
     };
 
+    // First set the company data without the ID field
     console.log("Setting company document with ID:", userId);
     await companiesRef.doc(userId).set(companyData);
+
+    // Then explicitly update to add the ID field, just like we do with addresses
+    await companiesRef.doc(userId).update({
+      id: userId,
+    });
+
+    console.log("Added ID field to company document:", userId);
     console.log("Company document created successfully");
 
     // Log activity
@@ -799,20 +818,30 @@ async function createCompanyProfile(userId, name, email, authProvider) {
 // Fetch company profile
 async function fetchCompanyProfile(userId) {
   try {
+    console.log("Fetching company profile for user ID:", userId);
     const doc = await companiesRef.doc(userId).get();
 
     if (doc.exists) {
-      const companyData = {
-        id: doc.id,
-        ...doc.data(),
-      };
+      console.log("Company profile found, checking for ID field");
 
-      // Ensure id field exists in the document
+      // Check if ID field exists
       if (!doc.data().id) {
+        console.log("ID field missing, adding it now:", userId);
         await companiesRef.doc(userId).update({
           id: userId,
         });
         console.log("Added missing id field to company document:", userId);
+      } else {
+        console.log("ID field already exists:", doc.data().id);
+
+        // Check if ID field has correct value
+        if (doc.data().id !== userId) {
+          console.warn("ID field has incorrect value, fixing it");
+          await companiesRef.doc(userId).update({
+            id: userId,
+          });
+          console.log("Fixed ID field in company document:", userId);
+        }
       }
 
       // Update last login
@@ -820,7 +849,12 @@ async function fetchCompanyProfile(userId) {
         lastLoginAt: getTimestamp(),
       });
 
-      return companyData;
+      // Return company data with ID guaranteed to be set
+      const updatedDoc = await companiesRef.doc(userId).get();
+      return {
+        ...updatedDoc.data(),
+        id: userId, // Explicitly ensure id is set in returned object
+      };
     } else {
       // If profile doesn't exist, create it
       console.log("No company profile found. Creating one...");
@@ -839,7 +873,8 @@ async function fetchCompanyProfile(userId) {
     }
   } catch (error) {
     console.error("Error fetching company profile:", error);
-    throw error;
+    showMessage(`Error fetching company profile: ${error.message}`, "error");
+    throw error; // Re-throw so calling code can handle errors
   }
 }
 
