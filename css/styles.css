@@ -1168,10 +1168,34 @@ input:checked + .toggle-slider:before {
 
 .time-with-format input[type="time"] {
     padding-right: 35px;
+    padding-left: 30px;
+    width: 100%;
 }
 
-.closed-status {
-    color: var(--danger-color);
+.time-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Update cancel button styling */
+.cancel-modal-btn {
+    background-color: var(--danger-color);
+    color: var(--white);
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.cancel-modal-btn:hover {
+    background-color: var(--danger-dark);
 }
 
 /* Fix for time input to display AM/PM format */

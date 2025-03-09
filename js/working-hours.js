@@ -224,7 +224,10 @@ function addWorkingHoursEventListeners() {
   // Add time off button
   const addTimeOffBtn = document.getElementById("add-time-off-btn");
   if (addTimeOffBtn) {
-    addTimeOffBtn.addEventListener("click", showAddTimeOffModal);
+    addTimeOffBtn.addEventListener("click", () => {
+      // Just switch to the working hours tab
+      tabButtons[0].click();
+    });
   }
 
   // Refresh working hours button
@@ -844,18 +847,32 @@ function addTimeOffToTable(timeOff) {
   const timeOffTableBody = document.getElementById("time-off-table-body");
   if (!timeOffTableBody) return;
 
-  // Format date
-  let formattedDate = "N/A";
-  if (timeOff.specificDay) {
-    const date = timeOff.specificDay.toDate
-      ? timeOff.specificDay.toDate()
-      : new Date(timeOff.specificDay);
+  // Format date based on frequency
+  let dateDisplay = "";
 
-    formattedDate = date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  if (timeOff.frequency === "once") {
+    // For one-time events, show the specific date
+    if (timeOff.specificDay) {
+      const date = timeOff.specificDay.toDate
+        ? timeOff.specificDay.toDate()
+        : new Date(timeOff.specificDay);
+
+      dateDisplay = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } else {
+      dateDisplay = "N/A";
+    }
+  } else if (timeOff.frequency === "weekly") {
+    // For weekly events, show the day of the week
+    dateDisplay = timeOff.dayOfWeek || "N/A";
+  } else if (timeOff.frequency === "daily") {
+    // For daily events, show "Every day"
+    dateDisplay = "Every day";
+  } else {
+    dateDisplay = "N/A";
   }
 
   // Format time
@@ -871,7 +888,7 @@ function addTimeOffToTable(timeOff) {
   } else if (timeOff.frequency === "daily") {
     frequencyDisplay = "Daily";
   } else if (timeOff.frequency === "weekly") {
-    frequencyDisplay = `Weekly (${timeOff.dayOfWeek || "Not specified"})`;
+    frequencyDisplay = "Weekly";
   } else {
     frequencyDisplay = timeOff.frequency || "Not specified";
   }
@@ -888,32 +905,34 @@ function addTimeOffToTable(timeOff) {
   const statusClass = isUpcoming ? "status-upcoming" : "status-past";
 
   // Create table row
-  const tr = document.createElement("tr");
-  tr.setAttribute("data-id", timeOff.id);
+  const row = document.createElement("tr");
+  row.setAttribute("data-id", timeOff.id);
 
   if (!isUpcoming) {
-    tr.classList.add("past-record");
+    row.classList.add("past-record");
   }
 
-  tr.innerHTML = `
+  row.innerHTML = `
     <td>${timeOff.title || "Untitled"}</td>
-    <td>${formattedDate}</td>
+    <td>${dateDisplay}</td>
     <td>${timeDisplay}</td>
     <td>${frequencyDisplay}</td>
     <td><span class="status-badge ${statusClass}">${statusDisplay}</span></td>
-    <td>
-      <div class="table-actions">
-        <button class="edit-time-off-btn" data-id="${timeOff.id}">
-          <i class="fas fa-edit"></i>
-        </button>
-        <button class="delete-time-off-btn" data-id="${timeOff.id}">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
+    <td class="actions-cell">
+      <button class="icon-btn edit-time-off-btn" data-id="${
+        timeOff.id
+      }" title="Edit Time Off">
+        <i class="fas fa-edit"></i>
+      </button>
+      <button class="icon-btn delete-time-off-btn" data-id="${
+        timeOff.id
+      }" title="Delete Time Off">
+        <i class="fas fa-trash-alt"></i>
+      </button>
     </td>
   `;
 
-  timeOffTableBody.appendChild(tr);
+  timeOffTableBody.appendChild(row);
 }
 
 // Add event listeners to time off action buttons
@@ -969,7 +988,7 @@ function showAddTimeOffModal() {
         </select>
       </div>
       
-      <div class="form-group">
+      <div class="form-group specific-day-group">
         <label for="time-off-start">Specific Day <span class="required">*</span></label>
         <input type="date" id="time-off-start" min="${today}" value="${today}">
       </div>
@@ -977,8 +996,8 @@ function showAddTimeOffModal() {
       <div class="form-group">
         <label for="time-off-start-time">Start Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
+          <input type="time" id="time-off-start-time" value="${currentTime}">
           <i class="far fa-clock time-icon"></i>
-        <input type="time" id="time-off-start-time" value="${currentTime}">
           <span class="time-format">AM</span>
         </div>
       </div>
@@ -986,14 +1005,14 @@ function showAddTimeOffModal() {
       <div class="form-group">
         <label for="time-off-end-time">End Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
+          <input type="time" id="time-off-end-time" value="${currentTime}">
           <i class="far fa-clock time-icon"></i>
-        <input type="time" id="time-off-end-time" value="${currentTime}">
           <span class="time-format">AM</span>
         </div>
       </div>
       
       <div class="form-actions">
-        <button class="danger-btn cancel-modal-btn">Cancel</button>
+        <button class="cancel-modal-btn">Cancel</button>
         <button class="primary-btn" id="add-time-off-btn"><i class="fas fa-plus"></i> Add Time Off</button>
       </div>
     </div>
@@ -1006,12 +1025,24 @@ function showAddTimeOffModal() {
     .getElementById("time-off-frequency")
     .addEventListener("change", function () {
       const dayOfWeekGroup = document.querySelector(".day-of-week-group");
+      const specificDayGroup = document.querySelector(".specific-day-group");
+
+      // Hide both by default
+      dayOfWeekGroup.style.display = "none";
+      specificDayGroup.style.display = "none";
+
+      // Show based on frequency
       if (this.value === "weekly") {
         dayOfWeekGroup.style.display = "block";
-      } else {
-        dayOfWeekGroup.style.display = "none";
+      } else if (this.value === "once") {
+        specificDayGroup.style.display = "block";
       }
+      // For daily, both remain hidden
     });
+
+  // Trigger the change event to set initial visibility
+  const frequencySelect = document.getElementById("time-off-frequency");
+  frequencySelect.dispatchEvent(new Event("change"));
 
   // Add event listener for add button
   document
@@ -1028,9 +1059,15 @@ function showAddTimeOffModal() {
       hideModal();
     });
 
-  // Update AM/PM indicators
-  updateTimeFormat(document.getElementById("time-off-start-time"));
-  updateTimeFormat(document.getElementById("time-off-end-time"));
+  // Add event listeners for time inputs to update AM/PM
+  const timeInputs = document.querySelectorAll('input[type="time"]');
+  timeInputs.forEach((input) => {
+    input.addEventListener("input", function () {
+      updateTimeFormat(this);
+    });
+    // Initialize time format
+    updateTimeFormat(input);
+  });
 }
 
 // Add time off record
@@ -1038,20 +1075,38 @@ async function addTimeOff() {
   try {
     // Get form values
     const title = document.getElementById("time-off-reason").value.trim();
-    const specificDay = document.getElementById("time-off-start").value;
+    const frequency = document.getElementById("time-off-frequency").value;
     const startTimeInput = document.getElementById("time-off-start-time").value;
     const endTimeInput = document.getElementById("time-off-end-time").value;
-    const frequency = document.getElementById("time-off-frequency").value;
-    const dayOfWeek = document.getElementById("time-off-day").value || "";
+
+    // Get conditional fields based on frequency
+    let specificDay = "";
+    let dayOfWeek = "";
+
+    if (frequency === "once") {
+      specificDay = document.getElementById("time-off-start").value;
+      if (!specificDay) {
+        showMessage(
+          "Please select a specific day for one-time time off",
+          "error"
+        );
+        return;
+      }
+    } else if (frequency === "weekly") {
+      dayOfWeek = document.getElementById("time-off-day").value;
+      if (!dayOfWeek) {
+        showMessage("Please select a day of week for weekly time off", "error");
+        return;
+      }
+      // Set a default date for the record (today's date)
+      specificDay = new Date().toISOString().split("T")[0];
+    } else if (frequency === "daily") {
+      // Set a default date for the record (today's date)
+      specificDay = new Date().toISOString().split("T")[0];
+    }
 
     // Validate required fields
-    if (
-      !title ||
-      !specificDay ||
-      !startTimeInput ||
-      !endTimeInput ||
-      !frequency
-    ) {
+    if (!title || !startTimeInput || !endTimeInput || !frequency) {
       showMessage("Please fill all required fields", "error");
       return;
     }
@@ -1061,10 +1116,6 @@ async function addTimeOff() {
     const originalButtonText = saveButton.innerHTML;
     saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     saveButton.disabled = true;
-
-    // Convert time inputs to TimeOfDay objects (stored as strings in Firestore)
-    const startTime = startTimeInput;
-    const endTime = endTimeInput;
 
     // Verify company data is available
     if (!currentCompany || !currentCompany.id) {
@@ -1085,8 +1136,8 @@ async function addTimeOff() {
     const timeOffData = {
       companyId: currentCompany.id,
       title: title,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: startTimeInput,
+      endTime: endTimeInput,
       frequency: frequency, // "once", "weekly", or "daily"
       dayOfWeek: dayOfWeek, // Only used if frequency is weekly
       specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
@@ -1179,14 +1230,14 @@ async function showEditTimeOffModal(timeOffId) {
     const modalContent = `
       <div class="edit-time-off-form" data-id="${timeOffId}">
         <div class="form-group">
-          <label for="edit-time-off-reason">Title</label>
+          <label for="edit-time-off-reason">Title <span class="required">*</span></label>
           <input type="text" id="edit-time-off-reason" value="${
             timeOff.title || ""
           }">
         </div>
         
         <div class="form-group">
-          <label for="edit-time-off-frequency">Frequency</label>
+          <label for="edit-time-off-frequency">Frequency <span class="required">*</span></label>
           <select id="edit-time-off-frequency">
             <option value="once" ${
               timeOff.frequency === "once" ? "selected" : ""
@@ -1203,7 +1254,7 @@ async function showEditTimeOffModal(timeOffId) {
         <div class="form-group day-of-week-group" style="display: ${
           timeOff.frequency === "weekly" ? "block" : "none"
         };">
-          <label for="edit-time-off-day">Day of Week</label>
+          <label for="edit-time-off-day">Day of Week <span class="required">*</span></label>
           <select id="edit-time-off-day">
             <option value="Monday" ${
               timeOff.dayOfWeek === "Monday" ? "selected" : ""
@@ -1229,28 +1280,40 @@ async function showEditTimeOffModal(timeOffId) {
           </select>
         </div>
         
-        <div class="form-group">
-          <label for="edit-time-off-start">Specific Day</label>
+        <div class="form-group specific-day-group" style="display: ${
+          timeOff.frequency === "once" ? "block" : "none"
+        };">
+          <label for="edit-time-off-start">Specific Day <span class="required">*</span></label>
           <input type="date" id="edit-time-off-start" min="${today}" value="${specificDayValue}">
         </div>
         
         <div class="form-group">
-          <label for="edit-time-off-start-time">Start Time</label>
-          <input type="time" id="edit-time-off-start-time" value="${
-            timeOff.startTime || ""
-          }">
+          <label for="edit-time-off-start-time">Start Time <span class="required">*</span></label>
+          <div class="time-input-wrapper time-with-format">
+            <input type="time" id="edit-time-off-start-time" value="${
+              timeOff.startTime || ""
+            }">
+            <i class="far fa-clock time-icon"></i>
+            <span class="time-format">AM</span>
+          </div>
         </div>
         
         <div class="form-group">
-          <label for="edit-time-off-end-time">End Time</label>
-          <input type="time" id="edit-time-off-end-time" value="${
-            timeOff.endTime || ""
-          }">
+          <label for="edit-time-off-end-time">End Time <span class="required">*</span></label>
+          <div class="time-input-wrapper time-with-format">
+            <input type="time" id="edit-time-off-end-time" value="${
+              timeOff.endTime || ""
+            }">
+            <i class="far fa-clock time-icon"></i>
+            <span class="time-format">AM</span>
+          </div>
         </div>
         
         <div class="form-actions">
-          <button class="danger-btn cancel-modal-btn">Cancel</button>
-          <button class="primary-btn" id="update-time-off-btn">Update Time Off</button>
+          <button class="cancel-modal-btn">Cancel</button>
+          <button class="primary-btn" id="update-time-off-btn">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
         </div>
       </div>
     `;
@@ -1262,12 +1325,30 @@ async function showEditTimeOffModal(timeOffId) {
       .getElementById("edit-time-off-frequency")
       .addEventListener("change", function () {
         const dayOfWeekGroup = document.querySelector(".day-of-week-group");
+        const specificDayGroup = document.querySelector(".specific-day-group");
+
+        // Hide both by default
+        dayOfWeekGroup.style.display = "none";
+        specificDayGroup.style.display = "none";
+
+        // Show based on frequency
         if (this.value === "weekly") {
           dayOfWeekGroup.style.display = "block";
-        } else {
-          dayOfWeekGroup.style.display = "none";
+        } else if (this.value === "once") {
+          specificDayGroup.style.display = "block";
         }
+        // For daily, both remain hidden
       });
+
+    // Add event listeners for time inputs
+    const timeInputs = document.querySelectorAll('input[type="time"]');
+    timeInputs.forEach((input) => {
+      input.addEventListener("input", function () {
+        updateTimeFormat(this);
+      });
+      // Initialize time format
+      updateTimeFormat(input);
+    });
 
     // Add event listener for update button
     document
@@ -1286,37 +1367,67 @@ async function updateTimeOff() {
 
     // Get form values
     const title = document.getElementById("edit-time-off-reason").value.trim();
-    const specificDay = document.getElementById("edit-time-off-start").value;
+    const frequency = document.getElementById("edit-time-off-frequency").value;
     const startTime = document.getElementById("edit-time-off-start-time").value;
     const endTime = document.getElementById("edit-time-off-end-time").value;
-    const frequency = document.getElementById("edit-time-off-frequency").value;
-    const dayOfWeek = document.getElementById("edit-time-off-day")?.value || "";
+
+    // Get conditional fields based on frequency
+    let specificDay = "";
+    let dayOfWeek = "";
+
+    if (frequency === "once") {
+      specificDay = document.getElementById("edit-time-off-start").value;
+      if (!specificDay) {
+        showMessage(
+          "Please select a specific day for one-time time off",
+          "error"
+        );
+        return;
+      }
+    } else if (frequency === "weekly") {
+      dayOfWeek = document.getElementById("edit-time-off-day").value;
+      if (!dayOfWeek) {
+        showMessage("Please select a day of week for weekly time off", "error");
+        return;
+      }
+      // Set a default date for the record (today's date)
+      specificDay = new Date().toISOString().split("T")[0];
+    } else if (frequency === "daily") {
+      // Set a default date for the record (today's date)
+      specificDay = new Date().toISOString().split("T")[0];
+    }
 
     // Validate required fields
-    if (!title || !specificDay || !startTime || !endTime || !frequency) {
+    if (!title || !startTime || !endTime || !frequency) {
       showMessage("Please fill all required fields", "error");
       return;
     }
 
-    // Show loading message
-    showMessage("Updating time off record...", "info");
-    console.log("Updating time off record:", timeOffId);
+    // Show loading
+    const updateBtn = document.getElementById("update-time-off-btn");
+    const originalBtnText = updateBtn.innerHTML;
+    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    updateBtn.disabled = true;
+
+    // Update document in Firestore
+    const timeOffData = {
+      title: title,
+      startTime: startTime,
+      endTime: endTime,
+      frequency: frequency,
+      dayOfWeek: dayOfWeek,
+      specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    console.log(
+      "Updating time off record:",
+      timeOffId,
+      JSON.stringify(timeOffData)
+    );
 
     // Update in Firestore
-    await db
-      .collection("timeOff")
-      .doc(timeOffId)
-      .update({
-        title: title,
-        specificDay: firebase.firestore.Timestamp.fromDate(
-          new Date(specificDay)
-        ),
-        startTime: startTime,
-        endTime: endTime,
-        frequency: frequency,
-        dayOfWeek: frequency === "weekly" ? dayOfWeek : "",
-        updatedAt: getTimestamp(),
-      });
+    await db.collection("timeOff").doc(timeOffId).update(timeOffData);
 
     // Hide modal and reload time off data
     hideModal();
@@ -1327,13 +1438,25 @@ async function updateTimeOff() {
     }, 500);
 
     // Log activity
-    await logActivity("update", "timeOff", currentCompany.id);
+    try {
+      await logActivity("update", "timeOff", currentCompany.id);
+    } catch (logError) {
+      console.error("Error logging activity:", logError);
+      // Continue since this is non-critical
+    }
 
     // Show success message
     showMessage("Time off record updated successfully", "success");
   } catch (error) {
     console.error("Error updating time off record:", error);
     showMessage("Error updating time off record: " + error.message, "error");
+
+    // Reset button state
+    const updateBtn = document.getElementById("update-time-off-btn");
+    if (updateBtn) {
+      updateBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+      updateBtn.disabled = false;
+    }
   }
 }
 
@@ -1343,7 +1466,7 @@ function confirmDeleteTimeOff(timeOffId) {
         <div class="confirmation-modal">
             <p>Are you sure you want to delete this time off record?</p>
             <div class="form-footer">
-                <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
+                <button type="button" class="cancel-modal-btn" onclick="hideModal()">Cancel</button>
                 <button type="button" class="danger-btn" onclick="deleteTimeOff('${timeOffId}')">Delete</button>
             </div>
         </div>

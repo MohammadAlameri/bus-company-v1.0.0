@@ -1,50 +1,58 @@
-// Global time formatting function used throughout the file
+// Global formatTime function for safely handling time formatting
 function formatTime(timeObj) {
-  // Check if timeObj is missing or null
+  // Handle null or missing timeObj
   if (!timeObj) return "N/A";
 
-  // Handle case where timeObj is a string (new format)
-  if (typeof timeObj === "string") {
-    // If it's already in the desired format (contains AM/PM), return it directly
-    if (timeObj.includes("AM") || timeObj.includes("PM")) {
-      return timeObj;
-    }
-
-    // Otherwise, try to convert from 24-hour format (HH:MM) to 12-hour format
-    try {
-      const [hours, minutes] = timeObj.split(":").map(Number);
-      const hour12 = hours % 12 || 12; // Convert 0 to 12
-      const period = hours < 12 ? "AM" : "PM";
-      return `${hour12.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")} ${period}`;
-    } catch (e) {
-      console.warn("Unable to format time string:", timeObj, e);
-      return timeObj; // Return the original string if conversion fails
-    }
-  }
-
-  // Check if timeObj has the necessary properties
-  if (
-    typeof timeObj.hour === "undefined" ||
-    typeof timeObj.minute === "undefined"
-  ) {
-    console.warn("Invalid time object format:", timeObj);
-    return "N/A";
-  }
-
   try {
-    const hour = timeObj.hour;
-    const minute = (timeObj.minute || 0).toString().padStart(2, "0");
+    // If timeObj is a string with HH:MM AM/PM format, return it directly
+    if (typeof timeObj === "string") {
+      if (timeObj.includes("AM") || timeObj.includes("PM")) {
+        return timeObj;
+      }
 
-    // Convert to 12-hour format
-    const hour12 = hour % 12 || 12; // Convert 0 to 12
-    const period = hour < 12 ? "AM" : "PM";
+      // If it's a string but not in the correct format, try to convert it
+      const parts = timeObj.split(":");
+      if (parts.length === 2) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
 
-    // Format as HH:MM aa
-    return `${hour12.toString().padStart(2, "0")}:${minute} ${period}`;
-  } catch (e) {
-    console.error("Error formatting time:", e, timeObj);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          return formatTimeFor12Hour(`${hours}:${minutes}`);
+        }
+      }
+    }
+
+    // If timeObj has a displayFormat property, use that
+    if (timeObj.displayFormat) {
+      return timeObj.displayFormat;
+    }
+
+    // If it has hour and minute properties, format those
+    if (
+      typeof timeObj.hour !== "undefined" &&
+      typeof timeObj.minute !== "undefined"
+    ) {
+      const h = parseInt(timeObj.hour, 10);
+      const m = parseInt(timeObj.minute, 10);
+
+      if (isNaN(h) || isNaN(m)) {
+        console.warn("Invalid time object values:", timeObj);
+        return "N/A";
+      }
+
+      const hour12 = h % 12 || 12; // Convert 0 to 12
+      const period = h < 12 ? "AM" : "PM";
+
+      return `${String(hour12).padStart(2, "0")}:${String(m).padStart(
+        2,
+        "0"
+      )} ${period}`;
+    }
+
+    console.warn("Unrecognized time format:", timeObj);
+    return "N/A";
+  } catch (error) {
+    console.warn("Error formatting time:", error);
     return "N/A";
   }
 }
@@ -269,104 +277,88 @@ function addTripToTable(trip) {
   // Format date
   let formattedDate = "N/A";
   if (trip.date) {
-    const date = trip.date.toDate ? trip.date.toDate() : new Date(trip.date);
-    formattedDate = date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  // Get the time values safely - use the displayFormat string if available
-  let departureTime = "N/A";
-  let arrivalTime = "N/A";
-
-  // Check if departure time is available
-  if (trip.departureTime) {
-    if (typeof trip.departureTime === "string") {
-      // If it's already a string format
-      departureTime = trip.departureTime;
-    } else if (trip.departureTime.displayFormat) {
-      // If it has a displayFormat property
-      departureTime = trip.departureTime.displayFormat;
-    } else {
-      // Otherwise, format it from the hour/minute properties
-      departureTime = formatTime(trip.departureTime);
+    try {
+      const date = trip.date.toDate ? trip.date.toDate() : new Date(trip.date);
+      formattedDate = date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      console.warn("Error formatting date:", error);
     }
-  } else if (trip.departureTimeObj) {
-    // Legacy format
-    departureTime = formatTime(trip.departureTimeObj);
   }
 
-  // Check if arrival time is available
-  if (trip.arrivalTime) {
-    if (typeof trip.arrivalTime === "string") {
-      // If it's already a string format
-      arrivalTime = trip.arrivalTime;
-    } else if (trip.arrivalTime.displayFormat) {
-      // If it has a displayFormat property
-      arrivalTime = trip.arrivalTime.displayFormat;
-    } else {
-      // Otherwise, format it from the hour/minute properties
-      arrivalTime = formatTime(trip.arrivalTime);
-    }
-  } else if (trip.arrivalTimeObj) {
-    // Legacy format
-    arrivalTime = formatTime(trip.arrivalTimeObj);
-  }
+  // Use our global formatTime function for safe time handling
+  const departureTime = formatTime(trip.departureTime || trip.departureTimeObj);
+  const arrivalTime = formatTime(trip.arrivalTime || trip.arrivalTimeObj);
 
   // Format waiting time
-  let waitingTimeDisplay = "N/A";
+  let waitingTime = "N/A";
   if (trip.waitingTime) {
-    const hours = trip.waitingTime.hour || 0;
-    const minutes = trip.waitingTime.minute || 0;
+    try {
+      const hours = trip.waitingTime.hour || 0;
+      const minutes = trip.waitingTime.minute || 0;
+      const totalMinutes = hours * 60 + minutes;
 
-    if (hours > 0 && minutes > 0) {
-      waitingTimeDisplay = `${hours}h ${minutes}m`;
-    } else if (hours > 0) {
-      waitingTimeDisplay = `${hours}h`;
-    } else if (minutes > 0) {
-      waitingTimeDisplay = `${minutes}m`;
-    } else {
-      waitingTimeDisplay = "0m";
+      if (totalMinutes === 0) {
+        waitingTime = "None";
+      } else if (totalMinutes < 60) {
+        waitingTime = `${minutes} min`;
+      } else if (minutes === 0) {
+        waitingTime = `${hours} hour${hours > 1 ? "s" : ""}`;
+      } else {
+        waitingTime = `${hours}h ${minutes}m`;
+      }
+    } catch (error) {
+      console.warn("Error formatting waiting time:", error);
     }
   }
 
   // Format price
-  const price = trip.price ? `${trip.price} ${trip.currency || ""}` : "N/A";
+  let price = "N/A";
+  if (trip.price !== undefined) {
+    try {
+      price = `${trip.price.toLocaleString()} ${trip.currency || ""}`;
+    } catch (error) {
+      console.warn("Error formatting price:", error);
+      price = `${trip.price} ${trip.currency || ""}`;
+    }
+  }
 
   // Get vehicle info
-  const vehicleInfo = trip.vehicleDetails
-    ? `${trip.vehicleDetails.vehicleType} (${trip.vehicleDetails.vehicleNo})`
-    : "N/A";
+  let vehicleInfo = "Unknown Vehicle";
+  if (window.vehicles && trip.vehicleId) {
+    const vehicle = window.vehicles.find((v) => v.id === trip.vehicleId);
+    if (vehicle) {
+      vehicleInfo = `${vehicle.name} (${vehicle.plateNumber})`;
+    }
+  }
 
-  // Create row
-  const row = `
-        <tr data-id="${trip.id}">
-            <td>${vehicleInfo}</td>
-            <td>${trip.fromCity} to ${trip.toCity}</td>
-            <td>${formattedDate}</td>
-            <td>${departureTime}</td>
-            <td>${arrivalTime}</td>
-            <td>${waitingTimeDisplay}</td>
-            <td>${trip.routeType || "N/A"}</td>
-            <td>${price}</td>
-            <td class="table-actions">
-                <button class="edit-btn" onclick="showEditTripModal('${
-                  trip.id
-                }')">
+  const row = document.createElement("tr");
+  row.setAttribute("data-id", trip.id);
+  row.setAttribute("data-trip", JSON.stringify(trip));
+
+  row.innerHTML = `
+        <td>${vehicleInfo}</td>
+    <td>${trip.fromCity} to ${trip.toCity}</td>
+    <td>${formattedDate}</td>
+    <td>${departureTime}</td>
+    <td>${arrivalTime}</td>
+    <td>${waitingTime}</td>
+    <td>${trip.routeType || "N/A"}</td>
+        <td>${price}</td>
+        <td>
+      <button class="action-btn edit-btn" data-id="${trip.id}">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="delete-btn" onclick="confirmDeleteTrip('${
-                  trip.id
-                }')">
+      <button class="action-btn delete-btn" data-id="${trip.id}">
                     <i class="fas fa-trash"></i>
                 </button>
-            </td>
-        </tr>
+        </td>
     `;
 
-  tripsTableBody.innerHTML += row;
+  tripsTableBody.appendChild(row);
 }
 
 // Add event listeners to trip action buttons
@@ -1235,31 +1227,51 @@ async function fetchCompanyVehicles() {
 function parseTimeInput(timeString) {
   if (!timeString) return null;
 
-  // Check if this is a 12-hour format with AM/PM
-  if (timeString.includes("AM") || timeString.includes("PM")) {
-    // Parse the 12-hour format (e.g., "02:30 PM")
-    const [timePart, period] = timeString.split(" ");
-    const [hours, minutes] = timePart.split(":").map(Number);
+  try {
+    // Check if this is a 12-hour format with AM/PM
+    if (timeString.includes("AM") || timeString.includes("PM")) {
+      // Parse the 12-hour format (e.g., "02:30 PM")
+      const [timePart, period] = timeString.split(" ");
+      if (!timePart || !period) return null;
 
-    // Convert to 24-hour format
-    let hour24 = hours;
-    if (period === "PM" && hours < 12) {
-      hour24 = hours + 12;
-    } else if (period === "AM" && hours === 12) {
-      hour24 = 0;
+      const parts = timePart.split(":");
+      if (parts.length !== 2) return null;
+
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+
+      if (isNaN(hours) || isNaN(minutes)) return null;
+
+      // Convert to 24-hour format
+      let hour24 = hours;
+      if (period === "PM" && hours < 12) {
+        hour24 = hours + 12;
+      } else if (period === "AM" && hours === 12) {
+        hour24 = 0;
+      }
+
+      return {
+        hour: hour24,
+        minute: minutes,
+      };
+    } else {
+      // Handle standard HTML time input (comes in 24-hour format)
+      const parts = timeString.split(":");
+      if (parts.length !== 2) return null;
+
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+
+      if (isNaN(hours) || isNaN(minutes)) return null;
+
+      return {
+        hour: hours,
+        minute: minutes,
+      };
     }
-
-    return {
-      hour: hour24,
-      minute: minutes,
-    };
-  } else {
-    // Handle standard HTML time input (comes in 24-hour format)
-    const [hours, minutes] = timeString.split(":").map(Number);
-    return {
-      hour: hours,
-      minute: minutes,
-    };
+  } catch (error) {
+    console.warn("Error parsing time input:", error);
+    return null;
   }
 }
 
@@ -1267,14 +1279,26 @@ function parseTimeInput(timeString) {
 function formatTimeFor12Hour(timeString) {
   if (!timeString) return "";
 
-  const [hours, minutes] = timeString.split(":").map(Number);
+  try {
+    const parts = timeString.split(":");
+    if (parts.length !== 2) return "";
 
-  const hour12 = hours % 12 || 12; // Convert 0 to 12
-  const period = hours < 12 ? "AM" : "PM";
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
 
-  return `${hour12.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")} ${period}`;
+    if (isNaN(hours) || isNaN(minutes)) return "";
+
+    const hour12 = hours % 12 || 12; // Convert 0 to 12
+    const period = hours < 12 ? "AM" : "PM";
+
+    return `${String(hour12).padStart(2, "0")}:${String(minutes).padStart(
+      2,
+      "0"
+    )} ${period}`;
+  } catch (error) {
+    console.warn("Error formatting time for 12-hour display:", error);
+    return "";
+  }
 }
 
 // Convert from 12-hour to 24-hour format for HTML time input
@@ -1312,6 +1336,7 @@ async function handleAddTrip(e) {
   const priceInput = document.getElementById("trip-price");
   const currencyInput = document.getElementById("trip-currency");
 
+  // Check required fields existence
   if (
     !vehicleInput ||
     !fromInput ||
@@ -1322,6 +1347,20 @@ async function handleAddTrip(e) {
     !routeTypeInput ||
     !priceInput ||
     !currencyInput
+  ) {
+    showMessage("Please fill in all required fields", "error");
+    return;
+  }
+
+  // Check required fields have values
+  if (
+    !vehicleInput.value ||
+    !fromInput.value ||
+    !toInput.value ||
+    !dateInput.value ||
+    !departureInput.value ||
+    !arrivalInput.value ||
+    !priceInput.value
   ) {
     showMessage("Please fill in all required fields", "error");
     return;
@@ -1350,12 +1389,26 @@ async function handleAddTrip(e) {
     const departureTime12h = departureInput.value.trim();
     const arrivalTime12h = arrivalInput.value.trim();
 
+    // Validate date input
+    let tripDate;
+    try {
+      tripDate = new Date(dateInput.value);
+      if (isNaN(tripDate.getTime())) {
+        showMessage("Please enter a valid date", "error");
+        return;
+      }
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      showMessage("Please enter a valid date", "error");
+      return;
+    }
+
     // Create trip
     const tripData = {
       vehicleId: vehicleInput.value,
       fromCity: fromInput.value,
       toCity: toInput.value,
-      date: new Date(dateInput.value),
+      date: tripDate,
 
       // Store the time in 12-hour format (HH:MM aa)
       departureTime: departureTime12h,
@@ -1366,11 +1419,17 @@ async function handleAddTrip(e) {
         minute: remainingMinutes,
       },
       routeType: routeTypeInput.value, // Direct or Multiple Stops
-      price: parseFloat(priceInput.value),
+      price: parseFloat(priceInput.value) || 0,
       currency: currencyInput.value, // YER, SAR, USD
       companyId: currentCompany.id,
       createdAt: getTimestamp(),
     };
+
+    // Add validation for important fields
+    if (!tripData.vehicleId || !tripData.fromCity || !tripData.toCity) {
+      showMessage("Missing required trip information", "error");
+      return;
+    }
 
     const newTripRef = await tripsRef.add(tripData);
 
@@ -1409,6 +1468,7 @@ async function handleEditTrip(e) {
   const priceInput = document.getElementById("edit-trip-price");
   const currencyInput = document.getElementById("edit-trip-currency");
 
+  // Check required fields existence
   if (
     !tripId ||
     !vehicleInput ||
@@ -1420,6 +1480,20 @@ async function handleEditTrip(e) {
     !routeTypeInput ||
     !priceInput ||
     !currencyInput
+  ) {
+    showMessage("Please fill in all required fields", "error");
+    return;
+  }
+
+  // Check required fields have values
+  if (
+    !vehicleInput.value ||
+    !fromInput.value ||
+    !toInput.value ||
+    !dateInput.value ||
+    !departureInput.value ||
+    !arrivalInput.value ||
+    !priceInput.value
   ) {
     showMessage("Please fill in all required fields", "error");
     return;
@@ -1448,12 +1522,26 @@ async function handleEditTrip(e) {
     const departureTime12h = departureInput.value.trim();
     const arrivalTime12h = arrivalInput.value.trim();
 
-    // Create trip update
-    const tripUpdate = {
+    // Validate date input
+    let tripDate;
+    try {
+      tripDate = new Date(dateInput.value);
+      if (isNaN(tripDate.getTime())) {
+        showMessage("Please enter a valid date", "error");
+        return;
+      }
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      showMessage("Please enter a valid date", "error");
+      return;
+    }
+
+    // Create updated trip data
+    const tripData = {
       vehicleId: vehicleInput.value,
       fromCity: fromInput.value,
       toCity: toInput.value,
-      date: new Date(dateInput.value),
+      date: tripDate,
 
       // Store the time in 12-hour format (HH:MM aa)
       departureTime: departureTime12h,
@@ -1463,14 +1551,13 @@ async function handleEditTrip(e) {
         hour: waitingHours,
         minute: remainingMinutes,
       },
-      routeType: routeTypeInput.value,
-      price: parseFloat(priceInput.value),
-      currency: currencyInput.value,
-      updatedAt: getTimestamp(),
+      routeType: routeTypeInput.value, // Direct or Multiple Stops
+      price: parseFloat(priceInput.value) || 0,
+      currency: currencyInput.value, // YER, SAR, USD
     };
 
-    // Update the trip in Firestore
-    await tripsRef.doc(tripId).update(tripUpdate);
+    // Update trip
+    await tripsRef.doc(tripId).update(tripData);
 
     // Log activity
     await logActivity("update", "trip", tripId);
