@@ -29,6 +29,8 @@ function formatTime(timeObj) {
 
     // If it has hour and minute properties, format those
     if (
+      timeObj &&
+      typeof timeObj === "object" &&
       typeof timeObj.hour !== "undefined" &&
       typeof timeObj.minute !== "undefined"
     ) {
@@ -289,16 +291,28 @@ function addTripToTable(trip) {
     }
   }
 
-  // Use our global formatTime function for safe time handling
-  const departureTime = formatTime(trip.departureTime || trip.departureTimeObj);
-  const arrivalTime = formatTime(trip.arrivalTime || trip.arrivalTimeObj);
+  // Safely get departure time
+  let departureTime = "N/A";
+  if (typeof trip.departureTime === "string" && trip.departureTime.trim()) {
+    departureTime = trip.departureTime;
+  } else if (trip.departureTimeObj) {
+    departureTime = formatTime(trip.departureTimeObj);
+  }
+
+  // Safely get arrival time
+  let arrivalTime = "N/A";
+  if (typeof trip.arrivalTime === "string" && trip.arrivalTime.trim()) {
+    arrivalTime = trip.arrivalTime;
+  } else if (trip.arrivalTimeObj) {
+    arrivalTime = formatTime(trip.arrivalTimeObj);
+  }
 
   // Format waiting time
   let waitingTime = "N/A";
   if (trip.waitingTime) {
     try {
-      const hours = trip.waitingTime.hour || 0;
-      const minutes = trip.waitingTime.minute || 0;
+      const hours = parseInt(trip.waitingTime.hour) || 0;
+      const minutes = parseInt(trip.waitingTime.minute) || 0;
       const totalMinutes = hours * 60 + minutes;
 
       if (totalMinutes === 0) {
@@ -308,7 +322,7 @@ function addTripToTable(trip) {
       } else if (minutes === 0) {
         waitingTime = `${hours} hour${hours > 1 ? "s" : ""}`;
       } else {
-        waitingTime = `${hours}h ${minutes}m`;
+        waitingTime = `${hours} hour${hours > 1 ? "s" : ""} ${minutes} min`;
       }
     } catch (error) {
       console.warn("Error formatting waiting time:", error);
@@ -455,8 +469,15 @@ async function showAddTripModal() {
     const defaultHour12 = defaultHour % 12 || 12;
     const defaultPeriod = defaultHour < 12 ? "AM" : "PM";
 
+    // Format default time for display
+    const defaultTimeString = `${defaultHour12
+      .toString()
+      .padStart(2, "0")}:${defaultMinute
+      .toString()
+      .padStart(2, "0")} ${defaultPeriod}`;
+
     const modalContent = `
-            <form id="add-trip-form">
+            <form id="add-trip-form" class="wide-form">
                 <div class="form-group">
                     <label for="trip-vehicle">Vehicle</label>
                     <select id="trip-vehicle" required>
@@ -464,14 +485,16 @@ async function showAddTripModal() {
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label for="trip-from">From City</label>
-                    <input type="text" id="trip-from" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="trip-to">To City</label>
-                    <input type="text" id="trip-to" required>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="trip-from">From City</label>
+                        <input type="text" id="trip-from" required>
+                    </div>
+                    
+                    <div class="form-group half">
+                        <label for="trip-to">To City</label>
+                        <input type="text" id="trip-to" required>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -485,7 +508,8 @@ async function showAddTripModal() {
                     <div class="form-group half">
                         <label for="trip-departure">Departure Time</label>
                         <div class="time-input-container">
-                            <input type="text" id="trip-departure" class="time-input" placeholder="HH:MM AM/PM" required>
+                            <input type="text" id="trip-departure" class="time-input" placeholder="HH:MM AM/PM" value="${defaultTimeString}" required>
+                            <i class="far fa-clock time-icon"></i>
                             <div class="time-picker">
                                 <select id="departure-hour" class="hour-select">
                                     ${Array.from(
@@ -539,6 +563,7 @@ async function showAddTripModal() {
                         <label for="trip-arrival">Arrival Time</label>
                         <div class="time-input-container">
                             <input type="text" id="trip-arrival" class="time-input" placeholder="HH:MM AM/PM" required>
+                            <i class="far fa-clock time-icon"></i>
                             <div class="time-picker">
                                 <select id="arrival-hour" class="hour-select">
                                     ${Array.from(
@@ -589,17 +614,19 @@ async function showAddTripModal() {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="trip-waiting">Waiting Time (Minutes)</label>
-                    <input type="number" id="trip-waiting" min="0" value="0">
-                </div>
-                
-                <div class="form-group">
-                    <label for="trip-route-type">Route Type</label>
-                    <select id="trip-route-type" required>
-                        <option value="Direct">Direct</option>
-                        <option value="Multiple Stops">Multiple Stops</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="trip-waiting">Waiting Time (Minutes)</label>
+                        <input type="number" id="trip-waiting" min="0" value="0">
+                    </div>
+                    
+                    <div class="form-group half">
+                        <label for="trip-route-type">Route Type</label>
+                        <select id="trip-route-type" required>
+                            <option value="Direct">Direct</option>
+                            <option value="Multiple Stops">Multiple Stops</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="form-row">
@@ -611,101 +638,58 @@ async function showAddTripModal() {
                     <div class="form-group half">
                         <label for="trip-currency">Currency</label>
                         <select id="trip-currency" required>
-                            <option value="YER">YER</option>
-                            <option value="SAR">SAR</option>
-                            <option value="USD">USD</option>
+                            <option value="YER">Yemeni Rial (YER)</option>
+                            <option value="SAR">Saudi Riyal (SAR)</option>
+                            <option value="USD">US Dollar (USD)</option>
                         </select>
                     </div>
                 </div>
                 
                 <div class="form-footer">
-                    <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
-                    <button type="submit" class="primary-btn">Add Trip</button>
+                    <button type="button" class="cancel-modal-btn" onclick="hideModal()">Cancel</button>
+                    <button type="submit" class="primary-btn">
+                        <i class="fas fa-plus-circle"></i> Add Trip
+                    </button>
                 </div>
             </form>
-            <style>
-                .time-input-container {
-                    position: relative;
-                }
-                .time-input {
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                }
-                .time-picker {
-                    display: none;
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    padding: 10px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                    z-index: 100;
-                    width: 100%;
-                }
-                .time-input:focus + .time-picker,
-                .time-picker:hover,
-                .time-picker.active {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                }
-                .set-time-btn {
-                    margin-left: auto;
-                    padding: 5px 10px;
-                    background: #4a6cf7;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                }
-                .set-time-btn:hover {
-                    background: #3a5bd7;
-                }
-                .hour-select, .minute-select {
-                    padding: 5px;
-                    border: 1px solid #ddd;
-                    border-radius: 3px;
-                }
-            </style>
         `;
 
-    showModal("Add New Trip", modalContent);
+    showModal("Add Trip", modalContent);
 
-    // Set up event listeners
+    // Set up form submission
     document
       .getElementById("add-trip-form")
       .addEventListener("submit", handleAddTrip);
 
-    // Set up time picker functionality with improved behavior
+    // Add time picker functionality
     setupTimePickers();
 
-    // Set the default time values for time inputs
+    // Pre-fill arrival time with a sensible default (departure time + 1 hour)
     setTimeout(() => {
       const departureInput = document.getElementById("trip-departure");
-      if (departureInput) {
-        departureInput.value = `${defaultHour12
-          .toString()
-          .padStart(2, "0")}:${defaultMinute
-          .toString()
-          .padStart(2, "0")} ${defaultPeriod}`;
-      }
-
       const arrivalInput = document.getElementById("trip-arrival");
-      if (arrivalInput) {
-        // Add one hour to arrival time by default
-        let arrivalHour = defaultHour + 1;
-        const arrivalPeriod = arrivalHour < 12 ? "AM" : "PM";
-        const arrivalHour12 = arrivalHour % 12 || 12;
 
-        arrivalInput.value = `${arrivalHour12
-          .toString()
-          .padStart(2, "0")}:${defaultMinute
-          .toString()
-          .padStart(2, "0")} ${arrivalPeriod}`;
+      // Only set a default for arrival if user hasn't entered something yet
+      if (departureInput.value && !arrivalInput.value) {
+        const departureObj = parseTimeInput(departureInput.value);
+        if (departureObj) {
+          // Create a default arrival time (departure + 1 hour)
+          let arrivalHour = departureObj.hour + 1;
+          const arrivalPeriod =
+            arrivalHour < 12 ? "AM" : arrivalHour < 24 ? "PM" : "AM";
+          const arrivalHour12 = arrivalHour % 12 || 12;
+
+          arrivalInput.value = `${arrivalHour12
+            .toString()
+            .padStart(2, "0")}:${departureObj.minute
+            .toString()
+            .padStart(2, "0")} ${arrivalPeriod}`;
+
+          // Update the select values for consistency
+          document.getElementById("arrival-hour").value = arrivalHour12;
+          document.getElementById("arrival-minute").value = departureObj.minute;
+          document.getElementById("arrival-period").value = arrivalPeriod;
+        }
       }
     }, 100);
   } catch (error) {
@@ -866,33 +850,48 @@ function updateSelectsFromInput(inputElement) {
 // Show edit trip modal
 async function showEditTripModal(tripId) {
   try {
-    // Fetch trip details
+    // Show loading
+    showMessage("Loading trip data...", "info");
+
+    // Fetch trip data
     const tripDoc = await tripsRef.doc(tripId).get();
+
     if (!tripDoc.exists) {
       showMessage("Trip not found", "error");
       return;
     }
 
     const trip = tripDoc.data();
-    console.log("Trip data for editing:", trip);
 
-    // Fetch vehicles for the company
-    const vehicles = await fetchCompanyVehicles();
+    // Get vehicle details
+    const vehicleDetails = await getVehicleDetails(trip.vehicleId);
+
+    // Fetch all vehicles for the company
+    const allVehicles = await fetchCompanyVehicles();
 
     let vehicleOptions = '<option value="">Select Vehicle</option>';
-    vehicles.forEach((vehicle) => {
-      const selected = vehicle.id === trip.vehicleId ? "selected" : "";
-      vehicleOptions += `<option value="${vehicle.id}" ${selected}>${vehicle.vehicleType} (${vehicle.vehicleNo})</option>`;
+    allVehicles.forEach((vehicle) => {
+      vehicleOptions += `<option value="${vehicle.id}" ${
+        vehicle.id === trip.vehicleId ? "selected" : ""
+      }>${vehicle.vehicleType} (${vehicle.vehicleNo})</option>`;
     });
 
     // Format date for input
-    const tripDate = trip.date.toDate
-      ? trip.date.toDate()
-      : new Date(trip.date);
-    const formattedDate = tripDate.toISOString().split("T")[0];
+    let formattedDate = "";
+    if (trip.date) {
+      try {
+        const date = trip.date.toDate
+          ? trip.date.toDate()
+          : new Date(trip.date);
+        formattedDate = date.toISOString().split("T")[0];
+      } catch (error) {
+        console.error("Error formatting date for edit:", error);
+      }
+    }
 
-    // Get departure and arrival times safely - handle multiple possible formats
-    let departureTime, arrivalTime;
+    // Parse the times
+    let departureTime = "";
+    let arrivalTime = "";
 
     // Check if departure time is available
     if (trip.departureTime) {
@@ -934,252 +933,212 @@ async function showEditTripModal(tripId) {
       }
 
       try {
-        const [timePart, period] = timeString.split(" ");
-        const [hours, minutes] = timePart.split(":").map(Number);
+        const [time, period] = timeString.trim().split(" ");
+        const [hourStr, minuteStr] = time.split(":");
 
-        return {
-          hour12: hours || 12,
-          minute: minutes || 0,
-          period: period || "AM",
-        };
-      } catch (e) {
-        console.warn("Error parsing time:", timeString, e);
+        const hour12 = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
+
+        if (isNaN(hour12) || isNaN(minute)) {
+          return { hour12: 9, minute: 0, period: "AM" };
+        }
+
+        return { hour12, minute, period };
+      } catch (error) {
+        console.warn("Error parsing time string:", error);
         return { hour12: 9, minute: 0, period: "AM" };
       }
     }
 
-    // Parse the times for the select components
-    const departureParts = parseTimeForSelects(departureTime);
-    const arrivalParts = parseTimeForSelects(arrivalTime);
+    const departureTimeParts = parseTimeForSelects(departureTime);
+    const arrivalTimeParts = parseTimeForSelects(arrivalTime);
 
-    // Calculate waiting time in minutes
+    // Get waiting time in minutes
+    const waitingHours =
+      trip.waitingTime && trip.waitingTime.hour
+        ? parseInt(trip.waitingTime.hour, 10)
+        : 0;
     const waitingMinutes =
-      (trip.waitingTime?.hour || 0) * 60 + (trip.waitingTime?.minute || 0);
-
-    // Add a hidden input for the trip ID
-    const tripIdInput = `<input type="hidden" id="edit-trip-id" value="${tripId}">`;
+      trip.waitingTime && trip.waitingTime.minute
+        ? parseInt(trip.waitingTime.minute, 10)
+        : 0;
+    const totalWaitingMinutes = waitingHours * 60 + waitingMinutes;
 
     const modalContent = `
-              <form id="edit-trip-form" data-id="${tripId}">
-                ${tripIdInput}
-                <div class="form-group">
-                    <label for="edit-trip-vehicle">Vehicle</label>
-                    <select id="edit-trip-vehicle">
-                        ${vehicleOptions}
-                    </select>
-                </div>
-                
-                <div class="form-row">
-                <div class="form-group">
-                        <label for="edit-trip-from">From</label>
-                    <input type="text" id="edit-trip-from" value="${
-                      trip.fromCity || ""
-                    }">
-                </div>
-                <div class="form-group">
-                        <label for="edit-trip-to">To</label>
-                    <input type="text" id="edit-trip-to" value="${
-                      trip.toCity || ""
-                    }">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit-trip-date">Date</label>
-                    <input type="date" id="edit-trip-date" value="${formattedDate}">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-trip-departure">Departure Time</label>
-                        <div class="time-input-wrapper">
-                            <input type="text" id="edit-trip-departure" class="time-input" value="${departureTime}">
-                            <div class="time-picker">
-                                <div class="picker-row">
-                                    <div class="picker-column">
-                                        <label>Hour</label>
-                                        <select id="edit-departure-hour">
-                                            ${Array.from(
-                                              { length: 12 },
-                                              (_, i) => i + 1
-                                            ).map(
-                                              (h) =>
-                                                `<option value="${h}" ${
-                                                  h === departureParts.hour12
-                                                    ? "selected"
-                                                    : ""
-                                                }>${h
-                                                  .toString()
-                                                  .padStart(2, "0")}</option>`
-                                            )}
-                                        </select>
-                                    </div>
-                                    <div class="picker-column">
-                                        <label>Minute</label>
-                                        <select id="edit-departure-minute">
-                                            ${Array.from(
-                                              { length: 12 },
-                                              (_, i) => i * 5
-                                            ).map((m) => {
-                                              // Find closest 5-minute interval
-                                              const closestMinute =
-                                                Math.round(
-                                                  departureParts.minute / 5
-                                                ) * 5;
-                                              return `<option value="${m}" ${
-                                                m === closestMinute
-                                                  ? "selected"
-                                                  : ""
-                                              }>${m
-                                                .toString()
-                                                .padStart(2, "0")}</option>`;
-                                            })}
-                                        </select>
-                                    </div>
-                                    <div class="picker-column">
-                                        <label>AM/PM</label>
-                                        <select id="edit-departure-period">
-                                            <option value="AM" ${
-                                              departureParts.period === "AM"
-                                                ? "selected"
-                                                : ""
-                                            }>AM</option>
-                                            <option value="PM" ${
-                                              departureParts.period === "PM"
-                                                ? "selected"
-                                                : ""
-                                            }>PM</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button type="button" class="set-time-btn" data-target="edit-trip-departure">Set Time</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-trip-arrival">Arrival Time</label>
-                        <div class="time-input-wrapper">
-                            <input type="text" id="edit-trip-arrival" class="time-input" value="${arrivalTime}">
-                            <div class="time-picker">
-                                <div class="picker-row">
-                                    <div class="picker-column">
-                                        <label>Hour</label>
-                                        <select id="edit-arrival-hour">
-                                            ${Array.from(
-                                              { length: 12 },
-                                              (_, i) => i + 1
-                                            ).map(
-                                              (h) =>
-                                                `<option value="${h}" ${
-                                                  h === arrivalParts.hour12
-                                                    ? "selected"
-                                                    : ""
-                                                }>${h
-                                                  .toString()
-                                                  .padStart(2, "0")}</option>`
-                                            )}
-                                        </select>
-                    </div>
-                                    <div class="picker-column">
-                                        <label>Minute</label>
-                                        <select id="edit-arrival-minute">
-                                            ${Array.from(
-                                              { length: 12 },
-                                              (_, i) => i * 5
-                                            ).map((m) => {
-                                              // Find closest 5-minute interval
-                                              const closestMinute =
-                                                Math.round(
-                                                  arrivalParts.minute / 5
-                                                ) * 5;
-                                              return `<option value="${m}" ${
-                                                m === closestMinute
-                                                  ? "selected"
-                                                  : ""
-                                              }>${m
-                                                .toString()
-                                                .padStart(2, "0")}</option>`;
-                                            })}
-                                        </select>
-                                    </div>
-                                    <div class="picker-column">
-                                        <label>AM/PM</label>
-                                        <select id="edit-arrival-period">
-                                            <option value="AM" ${
-                                              arrivalParts.period === "AM"
-                                                ? "selected"
-                                                : ""
-                                            }>AM</option>
-                                            <option value="PM" ${
-                                              arrivalParts.period === "PM"
-                                                ? "selected"
-                                                : ""
-                                            }>PM</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button type="button" class="set-time-btn" data-target="edit-trip-arrival">Set Time</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit-trip-waiting">Waiting Time (Minutes)</label>
-                    <input type="number" id="edit-trip-waiting" min="0" value="${waitingMinutes}">
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit-trip-route-type">Route Type</label>
-                    <select id="edit-trip-route-type">
-                        <option value="direct" ${
-                          trip.routeType === "direct" ? "selected" : ""
-                        }>Direct</option>
-                        <option value="multiple-stops" ${
-                          trip.routeType === "multiple-stops" ? "selected" : ""
-                        }>Multiple Stops</option>
-                    </select>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-trip-price">Price</label>
-                        <input type="number" id="edit-trip-price" min="0" step="0.01" value="${
-                          trip.price || ""
-                        }">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-trip-currency">Currency</label>
-                        <select id="edit-trip-currency">
-                            <option value="YER" ${
-                              trip.currency === "YER" ? "selected" : ""
-                            }>YER</option>
-                            <option value="SAR" ${
-                              trip.currency === "SAR" ? "selected" : ""
-                            }>SAR</option>
-                            <option value="USD" ${
-                              trip.currency === "USD" ? "selected" : ""
-                            }>USD</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-footer">
-                    <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
-                    <button type="submit" class="primary-btn">Update Trip</button>
-                </div>
-            </form>
-        `;
+      <form id="edit-trip-form" class="wide-form">
+        <input type="hidden" id="edit-trip-id" value="${tripId}">
+        
+        <div class="form-group">
+          <label for="edit-trip-vehicle">Vehicle</label>
+          <select id="edit-trip-vehicle" required>
+            ${vehicleOptions}
+          </select>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="edit-trip-from">From City</label>
+            <input type="text" id="edit-trip-from" value="${
+              trip.fromCity || ""
+            }" required>
+          </div>
+          
+          <div class="form-group half">
+            <label for="edit-trip-to">To City</label>
+            <input type="text" id="edit-trip-to" value="${
+              trip.toCity || ""
+            }" required>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-trip-date">Date</label>
+          <input type="date" id="edit-trip-date" value="${formattedDate}" required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="edit-trip-departure">Departure Time</label>
+            <div class="time-input-container">
+              <input type="text" id="edit-trip-departure" class="time-input" placeholder="HH:MM AM/PM" value="${departureTime}" required>
+              <i class="far fa-clock time-icon"></i>
+              <div class="time-picker">
+                <select id="edit-departure-hour" class="hour-select">
+                  ${Array.from({ length: 12 }, (_, i) => i + 1)
+                    .map(
+                      (h) =>
+                        `<option value="${h}" ${
+                          h === departureTimeParts.hour12 ? "selected" : ""
+                        }>${h.toString().padStart(2, "0")}</option>`
+                    )
+                    .join("")}
+                </select>
+                <span>:</span>
+                <select id="edit-departure-minute" class="minute-select">
+                  ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                    .map(
+                      (m) =>
+                        `<option value="${m}" ${
+                          m === departureTimeParts.minute ? "selected" : ""
+                        }>${m.toString().padStart(2, "0")}</option>`
+                    )
+                    .join("")}
+                </select>
+                <select id="edit-departure-period">
+                  <option value="AM" ${
+                    departureTimeParts.period === "AM" ? "selected" : ""
+                  }>AM</option>
+                  <option value="PM" ${
+                    departureTimeParts.period === "PM" ? "selected" : ""
+                  }>PM</option>
+                </select>
+                <button type="button" class="set-time-btn" data-target="edit-trip-departure">Set</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group half">
+            <label for="edit-trip-arrival">Arrival Time</label>
+            <div class="time-input-container">
+              <input type="text" id="edit-trip-arrival" class="time-input" placeholder="HH:MM AM/PM" value="${arrivalTime}" required>
+              <i class="far fa-clock time-icon"></i>
+              <div class="time-picker">
+                <select id="edit-arrival-hour" class="hour-select">
+                  ${Array.from({ length: 12 }, (_, i) => i + 1)
+                    .map(
+                      (h) =>
+                        `<option value="${h}" ${
+                          h === arrivalTimeParts.hour12 ? "selected" : ""
+                        }>${h.toString().padStart(2, "0")}</option>`
+                    )
+                    .join("")}
+                </select>
+                <span>:</span>
+                <select id="edit-arrival-minute" class="minute-select">
+                  ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                    .map(
+                      (m) =>
+                        `<option value="${m}" ${
+                          m === arrivalTimeParts.minute ? "selected" : ""
+                        }>${m.toString().padStart(2, "0")}</option>`
+                    )
+                    .join("")}
+                </select>
+                <select id="edit-arrival-period">
+                  <option value="AM" ${
+                    arrivalTimeParts.period === "AM" ? "selected" : ""
+                  }>AM</option>
+                  <option value="PM" ${
+                    arrivalTimeParts.period === "PM" ? "selected" : ""
+                  }>PM</option>
+                </select>
+                <button type="button" class="set-time-btn" data-target="edit-trip-arrival">Set</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="edit-trip-waiting">Waiting Time (Minutes)</label>
+            <input type="number" id="edit-trip-waiting" min="0" value="${totalWaitingMinutes}">
+          </div>
+          
+          <div class="form-group half">
+            <label for="edit-trip-route-type">Route Type</label>
+            <select id="edit-trip-route-type" required>
+              <option value="Direct" ${
+                trip.routeType === "Direct" ? "selected" : ""
+              }>Direct</option>
+              <option value="Multiple Stops" ${
+                trip.routeType === "Multiple Stops" ? "selected" : ""
+              }>Multiple Stops</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="edit-trip-price">Price</label>
+            <input type="number" id="edit-trip-price" min="0" step="0.01" value="${
+              trip.price || 0
+            }" required>
+          </div>
+          
+          <div class="form-group half">
+            <label for="edit-trip-currency">Currency</label>
+            <select id="edit-trip-currency" required>
+              <option value="YER" ${
+                trip.currency === "YER" ? "selected" : ""
+              }>Yemeni Rial (YER)</option>
+              <option value="SAR" ${
+                trip.currency === "SAR" ? "selected" : ""
+              }>Saudi Riyal (SAR)</option>
+              <option value="USD" ${
+                trip.currency === "USD" ? "selected" : ""
+              }>US Dollar (USD)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-footer">
+          <button type="button" class="cancel-modal-btn" onclick="hideModal()">Cancel</button>
+          <button type="submit" class="primary-btn">
+            <i class="fas fa-save"></i> Update Trip
+          </button>
+        </div>
+      </form>
+    `;
 
     showModal("Edit Trip", modalContent);
 
-    // Setup time pickers
-    setupTimePickers();
-
-    // Add event listener for form submission
+    // Set up form submission
     document
       .getElementById("edit-trip-form")
       .addEventListener("submit", handleEditTrip);
+
+    // Add time picker functionality
+    setupTimePickers();
   } catch (error) {
     console.error("Error showing edit trip modal:", error);
     showMessage("Error loading trip data: " + error.message, "error");
@@ -1227,11 +1186,25 @@ async function fetchCompanyVehicles() {
 function parseTimeInput(timeString) {
   if (!timeString) return null;
 
+  // If timeString is not a string, return null
+  if (typeof timeString !== "string") {
+    console.warn("Invalid time input format:", timeString);
+    return null;
+  }
+
   try {
+    // Make sure we have a trim'd string to work with
+    timeString = timeString.trim();
+
     // Check if this is a 12-hour format with AM/PM
     if (timeString.includes("AM") || timeString.includes("PM")) {
       // Parse the 12-hour format (e.g., "02:30 PM")
-      const [timePart, period] = timeString.split(" ");
+      const timeParts = timeString.split(" ");
+      if (timeParts.length !== 2) return null;
+
+      const timePart = timeParts[0];
+      const period = timeParts[1];
+
       if (!timePart || !period) return null;
 
       const parts = timePart.split(":");
@@ -1279,7 +1252,16 @@ function parseTimeInput(timeString) {
 function formatTimeFor12Hour(timeString) {
   if (!timeString) return "";
 
+  // If timeString is not a string, return empty string
+  if (typeof timeString !== "string") {
+    console.warn("Invalid time string format:", timeString);
+    return "";
+  }
+
   try {
+    // Make sure we're working with a trimmed string
+    timeString = timeString.trim();
+
     const parts = timeString.split(":");
     if (parts.length !== 2) return "";
 
@@ -1367,14 +1349,30 @@ async function handleAddTrip(e) {
   }
 
   try {
+    // Validate time formats first
+    if (
+      !validateTimeInput(departureInput) ||
+      !validateTimeInput(arrivalInput)
+    ) {
+      showMessage(
+        "Please enter valid times in the format HH:MM AM/PM",
+        "error"
+      );
+      return;
+    }
+
     // Convert waiting time minutes to TimeOfDay
     const waitingMinutes = parseInt(waitingInput.value) || 0;
     const waitingHours = Math.floor(waitingMinutes / 60);
     const remainingMinutes = waitingMinutes % 60;
 
     // Parse the departure and arrival times
-    const departureTimeObj = parseTimeInput(departureInput.value);
-    const arrivalTimeObj = parseTimeInput(arrivalInput.value);
+    const departureTime12h = departureInput.value.trim();
+    const arrivalTime12h = arrivalInput.value.trim();
+
+    // Parse to time objects for validation
+    const departureTimeObj = parseTimeInput(departureTime12h);
+    const arrivalTimeObj = parseTimeInput(arrivalTime12h);
 
     // Validate the time inputs
     if (!departureTimeObj || !arrivalTimeObj) {
@@ -1384,10 +1382,6 @@ async function handleAddTrip(e) {
       );
       return;
     }
-
-    // Store the 12-hour format times directly
-    const departureTime12h = departureInput.value.trim();
-    const arrivalTime12h = arrivalInput.value.trim();
 
     // Validate date input
     let tripDate;

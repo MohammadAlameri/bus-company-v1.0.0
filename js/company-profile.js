@@ -501,12 +501,12 @@ function showEditAddressModal() {
 
 // Display the address form with pre-filled data
 function showAddressForm(addressData) {
-  // Extract lat-lon values for directly inputting them
-  let latValue = "";
-  let lonValue = "";
+  // Extract lat-lon values for the hidden field
+  let latLonValue = "";
   if (addressData.latLon) {
-    latValue = addressData.latLon.latitude.toFixed(6);
-    lonValue = addressData.latLon.longitude.toFixed(6);
+    latLonValue = `${addressData.latLon.latitude.toFixed(
+      6
+    )},${addressData.latLon.longitude.toFixed(6)}`;
   }
 
   const modalContent = `
@@ -591,25 +591,13 @@ function showAddressForm(addressData) {
         
       <div class="form-section-heading">
         <h4>Location Coordinates <span class="required">*</span></h4>
+        <p class="form-section-subtext">Click the button below to select your location on the map</p>
       </div>
       
-      <div class="form-row coordinates-row">
-        <div class="form-group">
-          <label for="edit-company-lat">Latitude</label>
-          <input type="text" id="edit-company-lat" placeholder="15.3694" value="${latValue}">
-        </div>
-        <div class="form-group">
-          <label for="edit-company-lon">Longitude</label>
-          <input type="text" id="edit-company-lon" placeholder="44.191" value="${lonValue}">
-        </div>
-        <div class="form-group submit-coords">
-          <button type="button" id="set-coordinates-btn" class="primary-btn">
-            <i class="fas fa-check"></i> Set Coordinates
-                </button>
-        </div>
-      </div>
+      <!-- Hidden input to store coordinates -->
+      <input type="hidden" id="latLonValue" value="${latLonValue}">
       
-                <div class="coordinates-display">
+      <div class="coordinates-display">
         <span id="lat-lng-display" class="${
           addressData.latLon ? "has-coordinates" : "no-coordinates"
         }">
@@ -621,331 +609,80 @@ function showAddressForm(addressData) {
               : '<i class="fas fa-exclamation-circle"></i> No location selected'
           }
         </span>
-                </div>
+      </div>
       
-      <div class="map-section">
+      <div class="map-controls">
+        <button type="button" id="show-map-btn" class="location-btn">
+          <i class="fas fa-map"></i> Select Location on Map
+        </button>
+      </div>
+      
+      <div id="map-section" class="map-section" style="display: none;">
         <div id="address-map" class="address-map"></div>
         
         <div class="map-controls">
           <button type="button" id="get-location-btn" class="location-btn">
             <i class="fas fa-map-marker-alt"></i> Use My Current Location
           </button>
-            </div>
-            </div>
+          <button type="button" id="hide-map-btn" class="outline-btn">
+            <i class="fas fa-times"></i> Hide Map
+          </button>
+        </div>
+      </div>
             
-            <div class="form-footer">
-        <button type="button" class="danger-btn" onclick="hideModal()">
+      <div class="form-footer">
+        <button type="button" class="cancel-modal-btn" onclick="hideModal()">
           <i class="fas fa-times"></i> Cancel
         </button>
         <button type="button" class="primary-btn" id="save-address-btn">
           <i class="fas fa-save"></i> Save Address
         </button>
-            </div>
-        </div>
-    `;
+      </div>
+    </div>
+  `;
 
   // Update the modal content
   document.querySelector(".modal-content").innerHTML = modalContent;
   document.querySelector(".modal-title").textContent = "Edit Company Address";
 
-  // Add custom styles to improve the form appearance
-  const styleElement = document.createElement("style");
-  styleElement.textContent = `
-    .edit-address-form {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 25px;
-      box-sizing: border-box;
-    }
-    
-    .modal-content {
-      padding: 20px;
-    }
-    
-    .form-section-heading {
-      margin: 20px 0 15px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .form-section-heading h4 {
-      margin-bottom: 5px;
-      color: #333;
-    }
-    
-    .form-row {
-      display: flex;
-      flex-wrap: wrap;
-      margin: 0 -10px;
-      padding: 10px 0;
-    }
-    
-    .form-group {
-      flex: 1;
-      min-width: 250px;
-      padding: 0 15px;
-      margin-bottom: 20px;
-    }
-    
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    
-    .form-group input,
-    .form-group select {
-      width: 100%;
-      padding: 12px 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-    
-    .form-group input:focus,
-    .form-group select:focus {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-      outline: none;
-    }
-    
-    .coordinates-row {
-      background-color: #f8f9fa;
-      border-radius: 8px;
-      padding: 15px 10px;
-      margin: 5px 0 15px 0;
-    }
-    
-    .submit-coords {
-      display: flex;
-      align-items: flex-end;
-      justify-content: flex-end;
-      min-width: 120px;
-    }
-    
-    #set-coordinates-btn {
-      height: 44px;
-      white-space: nowrap;
-    }
-    
-    .address-map {
-      width: 100%;
-      height: 300px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    
-    .map-section {
-      padding: 0 15px;
-      margin-bottom: 25px;
-    }
-    
-    .map-controls {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 15px;
-      margin: 15px 0;
-      padding: 0 15px;
-    }
-    
-    .location-btn {
-      padding: 10px 18px;
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.3s;
-    }
-    
-    .location-btn:hover {
-      background-color: var(--primary-dark);
-    }
-    
-    .coordinates-display {
-      flex: 1;
-      padding: 15px 18px;
-      background-color: #f9f9f9;
-      border-radius: 6px;
-      border: 1px solid #e0e0e0;
-      font-size: 15px;
-      margin: 0 15px 20px 15px;
-    }
-    
-    .has-coordinates {
-      color: var(--success-color);
-      font-weight: 500;
-    }
-    
-    .no-coordinates {
-      color: var(--danger-color);
-      font-weight: 500;
-    }
-
-    .required {
-      color: var(--danger-color);
-      margin-left: 3px;
-    }
-    
-    .form-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 15px;
-      margin-top: 25px;
-      padding: 20px 15px;
-      border-top: 1px solid #e0e0e0;
-    }
-    
-    .form-footer button {
-      padding: 12px 20px;
-      font-size: 15px;
-    }
-    
-    @media (max-width: 768px) {
-      .edit-address-form {
-        padding: 15px;
-      }
-      
-      .form-group {
-        min-width: 100%;
-        padding: 0 10px;
-      }
-      
-      .map-controls {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 0 10px;
-      }
-      
-      .coordinates-display {
-        width: calc(100% - 40px);
-        margin: 0 10px 15px 10px;
-      }
-      
-      .form-footer {
-        padding: 15px 10px;
-      }
-    }
-  `;
-  document.head.appendChild(styleElement);
-
-  // Initialize the map
-  if (
-    typeof google !== "undefined" &&
-    typeof google.maps !== "undefined" &&
-    google.maps.Map
-  ) {
-    setTimeout(() => {
-      initializeAddressMap(addressData.latLon);
-    }, 500);
-  } else {
-    console.error("Google Maps API is not loaded.");
-    document.getElementById("address-map").innerHTML =
-      "<div class='map-error'>Google Maps API failed to load. Please refresh the page.</div>";
-  }
-
-  // Add click event for the "Use My Current Location" button
+  // Add event listener for the show map button
   document
-    .getElementById("get-location-btn")
-    .addEventListener("click", getCurrentLocation);
-
-  // Add click event for the "Set Coordinates" button
-  document
-    .getElementById("set-coordinates-btn")
+    .getElementById("show-map-btn")
     .addEventListener("click", function () {
-      const latInput = document.getElementById("edit-company-lat");
-      const lonInput = document.getElementById("edit-company-lon");
+      document.getElementById("map-section").style.display = "block";
+      this.style.display = "none";
 
-      const lat = parseFloat(latInput.value.trim());
-      const lon = parseFloat(lonInput.value.trim());
+      // Initialize map with existing coordinates or default
+      let initialLatLng = null;
+      const latLonValue = document.getElementById("latLonValue").value;
 
-      if (isNaN(lat) || isNaN(lon)) {
-        showMessage(
-          "Please enter valid latitude and longitude values",
-          "error"
-        );
-        return;
-      }
-
-      if (lat < -90 || lat > 90) {
-        showMessage("Latitude must be between -90 and 90 degrees", "error");
-        return;
-      }
-
-      if (lon < -180 || lon > 180) {
-        showMessage("Longitude must be between -180 and 180 degrees", "error");
-        return;
-      }
-
-      // Update the map with the new coordinates
-      const newLatLng = {
-        latitude: lat,
-        longitude: lon,
-      };
-
-      // Update the map
-      const map = window.addressMap; // Get the current map instance
-      if (map) {
-        const newPosition = { lat: lat, lng: lon };
-        map.setCenter(newPosition);
-
-        // Update or create the marker
-        if (window.addressMarker) {
-          window.addressMarker.setPosition(newPosition);
-          window.addressMarker.setAnimation(google.maps.Animation.DROP);
-        } else {
-          window.addressMarker = new google.maps.Marker({
-            position: newPosition,
-            map: map,
-            draggable: true,
-            animation: google.maps.Animation.DROP,
-          });
-
-          // Add drag event listener
-          google.maps.event.addListener(
-            window.addressMarker,
-            "dragend",
-            function () {
-              const position = window.addressMarker.getPosition();
-              const dragLatLng = {
-                latitude: position.lat(),
-                longitude: position.lng(),
-              };
-              updateLatLngDisplay(dragLatLng);
-
-              // Also update the input fields
-              document.getElementById("edit-company-lat").value = position
-                .lat()
-                .toFixed(6);
-              document.getElementById("edit-company-lon").value = position
-                .lng()
-                .toFixed(6);
-
-              // Try reverse geocoding
-              tryReverseGeocode(position.lat(), position.lng());
-            }
-          );
+      if (latLonValue) {
+        const [lat, lon] = latLonValue.split(",").map(parseFloat);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          initialLatLng = { latitude: lat, longitude: lon };
         }
       }
 
-      // Update the coordinates display
-      updateLatLngDisplay(newLatLng);
-
-      // Show success message
-      showMessage("Coordinates set successfully", "success");
+      initializeAddressMap(initialLatLng);
     });
 
-  // Add click event for the save button
+  // Add event listener for the hide map button
+  document
+    .getElementById("hide-map-btn")
+    .addEventListener("click", function () {
+      document.getElementById("map-section").style.display = "none";
+      document.getElementById("show-map-btn").style.display = "block";
+    });
+
+  // Add event listener for the save button
   document
     .getElementById("save-address-btn")
-    .addEventListener("click", function () {
-      validateAndUpdateAddress();
-    });
+    .addEventListener("click", validateAndUpdateAddress);
+
+  // Add event listener for the get location button (will be initialized when map is shown)
+  document
+    .getElementById("get-location-btn")
+    .addEventListener("click", getCurrentLocation);
 }
 
 // Function to validate form fields before saving
@@ -961,6 +698,7 @@ function validateAndUpdateAddress() {
   const country = countrySelect.value;
   const latLngDisplay = document.getElementById("lat-lng-display");
   const hasCoordinates = latLngDisplay.classList.contains("has-coordinates");
+  const latLonValue = document.getElementById("latLonValue").value;
 
   // Visual validation feedback
   let isValid = true;
@@ -998,15 +736,17 @@ function validateAndUpdateAddress() {
   }
 
   // Check map coordinates
-  if (!hasCoordinates) {
+  if (!hasCoordinates && !latLonValue) {
     document.querySelector(".coordinates-display").style.animation =
       "shake 0.5s";
-    document.querySelector(".address-map").style.borderColor = "#dc3545";
-    showMessage("Please set location coordinates", "error");
+    document.querySelector(".map-section").style.animation = "shake 0.5s";
+    showMessage("Please select a location on the map", "error");
     isValid = false;
   } else {
     document.querySelector(".coordinates-display").style.animation = "";
-    document.querySelector(".address-map").style.borderColor = "#ccc";
+    if (document.querySelector(".address-map")) {
+      document.querySelector(".address-map").style.borderColor = "#ccc";
+    }
   }
 
   if (isValid) {
@@ -1123,14 +863,6 @@ function initializeAddressMap(latLng) {
 
     updateLatLngDisplay(newLatLng);
 
-    // Update the input fields with new coordinates
-    document.getElementById("edit-company-lat").value = position
-      .lat()
-      .toFixed(6);
-    document.getElementById("edit-company-lon").value = position
-      .lng()
-      .toFixed(6);
-
     // Try to get address from coordinates (reverse geocoding)
     tryReverseGeocode(position.lat(), position.lng());
   });
@@ -1152,14 +884,6 @@ function initializeAddressMap(latLng) {
 
     updateLatLngDisplay(newLatLng);
 
-    // Update the input fields with new coordinates
-    document.getElementById("edit-company-lat").value = clickedLocation
-      .lat()
-      .toFixed(6);
-    document.getElementById("edit-company-lon").value = clickedLocation
-      .lng()
-      .toFixed(6);
-
     // Try to get address from coordinates
     tryReverseGeocode(clickedLocation.lat(), clickedLocation.lng());
   });
@@ -1168,24 +892,14 @@ function initializeAddressMap(latLng) {
   const mapStyle = document.createElement("style");
   mapStyle.textContent = `
     .map-info-window {
-      padding: 5px;
+      padding: 8px 12px;
       font-size: 14px;
-      font-weight: 500;
       color: #333;
-    }
-    .gm-style-iw {
-      padding: 10px;
+      max-width: 200px;
+      text-align: center;
     }
   `;
   document.head.appendChild(mapStyle);
-
-  // Make map responsive - redraw when window is resized
-  window.addEventListener("resize", function () {
-    google.maps.event.trigger(map, "resize");
-    map.setCenter({ lat: latLng.latitude, lng: latLng.longitude });
-  });
-
-  return map;
 }
 
 // Try to get address from coordinates (reverse geocoding)
@@ -1330,13 +1044,10 @@ function updateLatLngDisplay(latLng) {
   displayElement.innerHTML = `<i class="fas fa-check-circle"></i> Coordinates set: ${latitude}, ${longitude}`;
   displayElement.className = "has-coordinates";
 
-  // Also update the input fields if they exist
-  const latInput = document.getElementById("edit-company-lat");
-  const lonInput = document.getElementById("edit-company-lon");
-
-  if (latInput && lonInput) {
-    latInput.value = latitude;
-    lonInput.value = longitude;
+  // Update the hidden input field
+  const latLonInput = document.getElementById("latLonValue");
+  if (latLonInput) {
+    latLonInput.value = `${latitude},${longitude}`;
   }
 
   // Remove any error styling
@@ -1512,31 +1223,29 @@ async function updateCompanyAddress() {
       return;
     }
 
-    // Get lat/lng from display or from input fields
+    // Get lat/lng from the hidden input or display
     let latLon = null;
     let latLonString = ""; // Store as string format
 
-    // Try to get coordinates from the display first
-    const latLngText = document.getElementById("lat-lng-display").textContent;
-    if (latLngText && latLngText.includes("Coordinates set")) {
-      const matches = latLngText.match(/Coordinates set: ([-\d.]+), ([-\d.]+)/);
-      if (matches && matches.length === 3) {
-        const lat = parseFloat(matches[1]);
-        const lon = parseFloat(matches[2]);
+    // Try to get coordinates from the hidden input first
+    const latLonValue = document.getElementById("latLonValue").value;
+    if (latLonValue && latLonValue.includes(",")) {
+      const [lat, lon] = latLonValue.split(",").map(parseFloat);
+      if (!isNaN(lat) && !isNaN(lon)) {
         latLon = { latitude: lat, longitude: lon };
-        latLonString = `${lat},${lon}`; // Format as string
+        latLonString = latLonValue; // Use the value directly
       }
     }
-    // If not found in display, try the input fields
+    // If not found in hidden input, try the display
     else {
-      const latInput = document.getElementById("edit-company-lat").value.trim();
-      const lonInput = document.getElementById("edit-company-lon").value.trim();
-
-      if (latInput && lonInput) {
-        const lat = parseFloat(latInput);
-        const lon = parseFloat(lonInput);
-
-        if (!isNaN(lat) && !isNaN(lon)) {
+      const latLngText = document.getElementById("lat-lng-display").textContent;
+      if (latLngText && latLngText.includes("Coordinates set")) {
+        const matches = latLngText.match(
+          /Coordinates set: ([-\d.]+), ([-\d.]+)/
+        );
+        if (matches && matches.length === 3) {
+          const lat = parseFloat(matches[1]);
+          const lon = parseFloat(matches[2]);
           latLon = { latitude: lat, longitude: lon };
           latLonString = `${lat},${lon}`; // Format as string
         }
@@ -1545,7 +1254,7 @@ async function updateCompanyAddress() {
 
     if (!latLon) {
       hideLoadingIndicator();
-      showMessage("Please set valid location coordinates", "error");
+      showMessage("Please select a location on the map", "error");
 
       // Reset the save button
       const saveButton = document.getElementById("save-address-btn");
@@ -1618,37 +1327,40 @@ async function updateCompanyAddress() {
         });
         console.log("Updated company with new address ID");
 
-        // Update local company data
+        // Update current company object with the new addressId
         currentCompany.addressId = addressRef.id;
-        localStorage.setItem("currentCompany", JSON.stringify(currentCompany));
       } catch (error) {
         console.error("Error creating new address:", error);
-        throw error;
+        showMessage("Failed to create new address: " + error.message, "error");
+        hideLoadingIndicator();
+        return;
       }
     }
+
+    // Reload company profile to reflect changes
+    await loadCompanyProfile();
+
+    // Hide modal
+    hideModal();
+
+    // Show success message
+    showMessage("Address updated successfully", "success");
 
     // Hide loading indicator
     hideLoadingIndicator();
 
-    // Hide modal and reload profile
-    hideModal();
-    loadCompanyProfile();
-
-    // Log activity
-    try {
-      await logActivity("update", "address", currentCompany.addressId);
-    } catch (logError) {
-      console.error("Error logging activity:", logError);
-      // Continue since this is non-critical
+    // Re-enable the save button
+    const saveButton = document.getElementById("save-address-btn");
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.innerHTML = '<i class="fas fa-save"></i> Save Address';
     }
-
-    showMessage("Address updated successfully", "success");
   } catch (error) {
     console.error("Error updating address:", error);
+    showMessage("Error updating address: " + error.message, "error");
     hideLoadingIndicator();
-    showMessage(`Error updating address: ${error.message}`, "error");
 
-    // Reset the save button
+    // Re-enable the save button
     const saveButton = document.getElementById("save-address-btn");
     if (saveButton) {
       saveButton.disabled = false;

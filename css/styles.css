@@ -624,12 +624,13 @@ button {
 .modal-content {
     background-color: #fff;
     border-radius: 8px;
-    padding: 20px;
-    max-width: 90%;
+    padding: 25px;
+    max-width: 750px;
     max-height: 85vh;
     overflow-y: auto;
     position: relative;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 90%;
 }
 
 /* Address Form Specific Overrides */
@@ -768,6 +769,19 @@ button {
     
     .search-bar {
         width: 100%;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .form-group.half {
+        width: 100%;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: 15px;
     }
 }
 
@@ -1152,11 +1166,12 @@ input:checked + .toggle-slider:before {
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
 }
 
 .time-format {
     position: absolute;
-    right: 8px;
+    right: 35px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
@@ -1167,14 +1182,15 @@ input:checked + .toggle-slider:before {
 }
 
 .time-with-format input[type="time"] {
-    padding-right: 35px;
-    padding-left: 30px;
+    padding-right: 65px;
+    padding-left: 12px;
     width: 100%;
 }
 
 .time-icon {
     position: absolute;
-    left: 8px;
+    right: 10px;
+    left: auto;
     top: 50%;
     transform: translateY(-50%);
     color: var(--gray);
@@ -1206,4 +1222,190 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* Hide the clear button on time inputs in Edge */
 input[type="time"]::-ms-clear {
     display: none;
+}
+
+/* Address Form Map Styling */
+.map-section {
+  margin: 20px 0;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.address-map {
+  width: 100%;
+  height: 400px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.location-btn {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.location-btn i {
+  margin-right: 8px;
+}
+
+.location-btn:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.coordinates-display {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.has-coordinates {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.no-coordinates {
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
+.form-section-subtext {
+  color: var(--gray);
+  font-size: 14px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+}
+
+/* Time picker styling */
+.time-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.time-input {
+  width: 100%;
+  padding: 10px 12px;
+  padding-right: 40px; /* Space for the icon */
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.time-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  outline: none;
+}
+
+.time-picker {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  margin-top: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.time-picker.active {
+  display: flex;
+}
+
+.time-picker select {
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  font-size: 14px;
+}
+
+.hour-select, .minute-select {
+  width: 60px;
+}
+
+.time-picker span {
+  font-weight: bold;
+  padding: 0 5px;
+}
+
+.set-time-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-left: 5px;
+  transition: all 0.2s ease;
+}
+
+.set-time-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.valid-input {
+  border-color: #28a745 !important;
+}
+
+.invalid-input {
+  border-color: #dc3545 !important;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -10px;
+    gap: 15px;
+}
+
+.form-group.half {
+    flex: 1;
+    min-width: 200px;
+}
+
+.time-picker {
+    width: 100%;
+    max-width: 350px;
+}
+
+/* Wide form styling */
+.wide-form {
+    width: 100%;
+    max-width: 750px;
+    margin: 0 auto;
 } 

@@ -997,8 +997,8 @@ function showAddTimeOffModal() {
         <label for="time-off-start-time">Start Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
           <input type="time" id="time-off-start-time" value="${currentTime}">
-          <i class="far fa-clock time-icon"></i>
           <span class="time-format">AM</span>
+          <i class="far fa-clock time-icon"></i>
         </div>
       </div>
       
@@ -1006,8 +1006,8 @@ function showAddTimeOffModal() {
         <label for="time-off-end-time">End Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
           <input type="time" id="time-off-end-time" value="${currentTime}">
-          <i class="far fa-clock time-icon"></i>
           <span class="time-format">AM</span>
+          <i class="far fa-clock time-icon"></i>
         </div>
       </div>
       
@@ -1293,8 +1293,8 @@ async function showEditTimeOffModal(timeOffId) {
             <input type="time" id="edit-time-off-start-time" value="${
               timeOff.startTime || ""
             }">
-            <i class="far fa-clock time-icon"></i>
             <span class="time-format">AM</span>
+            <i class="far fa-clock time-icon"></i>
           </div>
         </div>
         
@@ -1304,8 +1304,8 @@ async function showEditTimeOffModal(timeOffId) {
             <input type="time" id="edit-time-off-end-time" value="${
               timeOff.endTime || ""
             }">
-            <i class="far fa-clock time-icon"></i>
             <span class="time-format">AM</span>
+            <i class="far fa-clock time-icon"></i>
           </div>
         </div>
         
