@@ -510,43 +510,43 @@ function showAddressForm(addressData) {
   }
 
   const modalContent = `
-    <div class="edit-address-form">
+        <div class="edit-address-form">
       <div class="form-section-heading">
         <h4>Location Details</h4>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
+        <div class="form-row">
+            <div class="form-group">
           <label for="edit-company-street-number">Street Number <span class="required">*</span></label>
           <input type="text" id="edit-company-street-number" placeholder="123" value="${
             addressData.streetNumber || ""
           }" required>
-        </div>
-        <div class="form-group">
+            </div>
+            <div class="form-group">
           <label for="edit-company-street-name">Street Name <span class="required">*</span></label>
           <input type="text" id="edit-company-street-name" placeholder="Main Street" value="${
             addressData.streetName || ""
           }" required>
+            </div>
         </div>
-      </div>
-      
-      <div class="form-row">
-        <div class="form-group">
+        
+        <div class="form-row">
+            <div class="form-group">
           <label for="edit-company-city">City <span class="required">*</span></label>
           <input type="text" id="edit-company-city" placeholder="City Name" value="${
             addressData.city || ""
           }" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-company-district">District</label>
+            </div>
+            <div class="form-group">
+                <label for="edit-company-district">District</label>
           <input type="text" id="edit-company-district" placeholder="District Name" value="${
             addressData.district || ""
           }">
+            </div>
         </div>
-      </div>
-      
-      <div class="form-row">
-        <div class="form-group">
+        
+        <div class="form-row">
+            <div class="form-group">
           <label for="edit-company-country">Country <span class="required">*</span></label>
           <select id="edit-company-country" required>
             <option value="" disabled ${
@@ -580,15 +580,15 @@ function showAddressForm(addressData) {
               addressData.country === "YE" ? "selected" : ""
             }>Yemen</option>
           </select>
-        </div>
-        <div class="form-group">
+            </div>
+            <div class="form-group">
           <label for="edit-company-next-to">Next To / Landmark</label>
           <input type="text" id="edit-company-next-to" placeholder="Near Central Bank" value="${
             addressData.nextTo || ""
           }">
+            </div>
         </div>
-      </div>
-      
+        
       <div class="form-section-heading">
         <h4>Location Coordinates <span class="required">*</span></h4>
       </div>
@@ -605,11 +605,11 @@ function showAddressForm(addressData) {
         <div class="form-group submit-coords">
           <button type="button" id="set-coordinates-btn" class="primary-btn">
             <i class="fas fa-check"></i> Set Coordinates
-          </button>
+                </button>
         </div>
       </div>
       
-      <div class="coordinates-display">
+                <div class="coordinates-display">
         <span id="lat-lng-display" class="${
           addressData.latLon ? "has-coordinates" : "no-coordinates"
         }">
@@ -621,7 +621,7 @@ function showAddressForm(addressData) {
               : '<i class="fas fa-exclamation-circle"></i> No location selected'
           }
         </span>
-      </div>
+                </div>
       
       <div class="map-section">
         <div id="address-map" class="address-map"></div>
@@ -630,19 +630,19 @@ function showAddressForm(addressData) {
           <button type="button" id="get-location-btn" class="location-btn">
             <i class="fas fa-map-marker-alt"></i> Use My Current Location
           </button>
-        </div>
-      </div>
-      
-      <div class="form-footer">
+            </div>
+            </div>
+            
+            <div class="form-footer">
         <button type="button" class="danger-btn" onclick="hideModal()">
           <i class="fas fa-times"></i> Cancel
         </button>
         <button type="button" class="primary-btn" id="save-address-btn">
           <i class="fas fa-save"></i> Save Address
         </button>
-      </div>
-    </div>
-  `;
+            </div>
+        </div>
+    `;
 
   // Update the modal content
   document.querySelector(".modal-content").innerHTML = modalContent;
@@ -654,12 +654,17 @@ function showAddressForm(addressData) {
     .edit-address-form {
       max-width: 800px;
       margin: 0 auto;
+      padding: 25px;
+      box-sizing: border-box;
+    }
+    
+    .modal-content {
       padding: 20px;
     }
     
     .form-section-heading {
       margin: 20px 0 15px;
-      padding-bottom: 5px;
+      padding-bottom: 8px;
       border-bottom: 1px solid #e0e0e0;
     }
     
@@ -672,29 +677,30 @@ function showAddressForm(addressData) {
       display: flex;
       flex-wrap: wrap;
       margin: 0 -10px;
-      padding: 8px 0;
+      padding: 10px 0;
     }
     
     .form-group {
       flex: 1;
       min-width: 250px;
-      padding: 0 10px;
-      margin-bottom: 15px;
+      padding: 0 15px;
+      margin-bottom: 20px;
     }
     
     .form-group label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
       font-weight: 500;
     }
     
     .form-group input,
     .form-group select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 12px 15px;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 15px;
+      box-sizing: border-box;
     }
     
     .form-group input:focus,
@@ -706,9 +712,9 @@ function showAddressForm(addressData) {
     
     .coordinates-row {
       background-color: #f8f9fa;
-      border-radius: 6px;
-      padding: 12px 6px;
-      margin-bottom: 10px;
+      border-radius: 8px;
+      padding: 15px 10px;
+      margin: 5px 0 15px 0;
     }
     
     .submit-coords {
@@ -719,7 +725,7 @@ function showAddressForm(addressData) {
     }
     
     #set-coordinates-btn {
-      height: 42px;
+      height: 44px;
       white-space: nowrap;
     }
     
@@ -727,8 +733,14 @@ function showAddressForm(addressData) {
       width: 100%;
       height: 300px;
       border: 1px solid #ccc;
-      border-radius: 5px;
-      margin-bottom: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    
+    .map-section {
+      padding: 0 15px;
+      margin-bottom: 25px;
     }
     
     .map-controls {
@@ -736,15 +748,16 @@ function showAddressForm(addressData) {
       align-items: center;
       flex-wrap: wrap;
       gap: 15px;
-      margin-bottom: 20px;
+      margin: 15px 0;
+      padding: 0 15px;
     }
     
     .location-btn {
-      padding: 8px 16px;
+      padding: 10px 18px;
       background-color: var(--primary-color);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
       transition: background-color 0.3s;
@@ -756,12 +769,12 @@ function showAddressForm(addressData) {
     
     .coordinates-display {
       flex: 1;
-      padding: 12px 15px;
+      padding: 15px 18px;
       background-color: #f9f9f9;
-      border-radius: 4px;
+      border-radius: 6px;
       border: 1px solid #e0e0e0;
       font-size: 15px;
-      margin-bottom: 15px;
+      margin: 0 15px 20px 15px;
     }
     
     .has-coordinates {
@@ -782,24 +795,40 @@ function showAddressForm(addressData) {
     .form-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      margin-top: 20px;
-      padding-top: 15px;
+      gap: 15px;
+      margin-top: 25px;
+      padding: 20px 15px;
       border-top: 1px solid #e0e0e0;
     }
     
+    .form-footer button {
+      padding: 12px 20px;
+      font-size: 15px;
+    }
+    
     @media (max-width: 768px) {
+      .edit-address-form {
+        padding: 15px;
+      }
+      
       .form-group {
         min-width: 100%;
+        padding: 0 10px;
       }
       
       .map-controls {
         flex-direction: column;
         align-items: flex-start;
+        padding: 0 10px;
       }
       
       .coordinates-display {
-        width: 100%;
+        width: calc(100% - 40px);
+        margin: 0 10px 15px 10px;
+      }
+      
+      .form-footer {
+        padding: 15px 10px;
       }
     }
   `;

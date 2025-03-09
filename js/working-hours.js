@@ -145,13 +145,13 @@ function generateWeekdayHoursHTML() {
                 <div class="time-input-group">
                     <div class="time-input-wrapper time-with-format">
                         <i class="far fa-clock time-icon"></i>
-                        <input type="time" class="time-input start-time" data-day="${day}" value="09:00">
+                    <input type="time" class="time-input start-time" data-day="${day}" value="09:00">
                         <span class="time-format">AM</span>
                     </div>
                     <span class="time-separator">to</span>
                     <div class="time-input-wrapper time-with-format">
                         <i class="far fa-clock time-icon"></i>
-                        <input type="time" class="time-input end-time" data-day="${day}" value="17:00">
+                    <input type="time" class="time-input end-time" data-day="${day}" value="17:00">
                         <span class="time-format">PM</span>
                     </div>
                 </div>
@@ -978,7 +978,7 @@ function showAddTimeOffModal() {
         <label for="time-off-start-time">Start Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
           <i class="far fa-clock time-icon"></i>
-          <input type="time" id="time-off-start-time" value="${currentTime}">
+        <input type="time" id="time-off-start-time" value="${currentTime}">
           <span class="time-format">AM</span>
         </div>
       </div>
@@ -987,7 +987,7 @@ function showAddTimeOffModal() {
         <label for="time-off-end-time">End Time <span class="required">*</span></label>
         <div class="time-input-wrapper time-with-format">
           <i class="far fa-clock time-icon"></i>
-          <input type="time" id="time-off-end-time" value="${currentTime}">
+        <input type="time" id="time-off-end-time" value="${currentTime}">
           <span class="time-format">AM</span>
         </div>
       </div>

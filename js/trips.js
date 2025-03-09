@@ -1,3 +1,54 @@
+// Global time formatting function used throughout the file
+function formatTime(timeObj) {
+  // Check if timeObj is missing or null
+  if (!timeObj) return "N/A";
+
+  // Handle case where timeObj is a string (new format)
+  if (typeof timeObj === "string") {
+    // If it's already in the desired format (contains AM/PM), return it directly
+    if (timeObj.includes("AM") || timeObj.includes("PM")) {
+      return timeObj;
+    }
+
+    // Otherwise, try to convert from 24-hour format (HH:MM) to 12-hour format
+    try {
+      const [hours, minutes] = timeObj.split(":").map(Number);
+      const hour12 = hours % 12 || 12; // Convert 0 to 12
+      const period = hours < 12 ? "AM" : "PM";
+      return `${hour12.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")} ${period}`;
+    } catch (e) {
+      console.warn("Unable to format time string:", timeObj, e);
+      return timeObj; // Return the original string if conversion fails
+    }
+  }
+
+  // Check if timeObj has the necessary properties
+  if (
+    typeof timeObj.hour === "undefined" ||
+    typeof timeObj.minute === "undefined"
+  ) {
+    console.warn("Invalid time object format:", timeObj);
+    return "N/A";
+  }
+
+  try {
+    const hour = timeObj.hour;
+    const minute = (timeObj.minute || 0).toString().padStart(2, "0");
+
+    // Convert to 12-hour format
+    const hour12 = hour % 12 || 12; // Convert 0 to 12
+    const period = hour < 12 ? "AM" : "PM";
+
+    // Format as HH:MM aa
+    return `${hour12.toString().padStart(2, "0")}:${minute} ${period}`;
+  } catch (e) {
+    console.error("Error formatting time:", e, timeObj);
+    return "N/A";
+  }
+}
+
 // Initialize trips section
 function loadTrips() {
   if (!currentCompany) return;
@@ -226,20 +277,43 @@ function addTripToTable(trip) {
     });
   }
 
-  // Get the time values - directly use the 12-hour formatted time if available
-  const departureTime =
-    typeof trip.departureTime === "string"
-      ? trip.departureTime
-      : trip.departureTimeObj
-      ? formatTime(trip.departureTimeObj)
-      : "N/A";
+  // Get the time values safely - use the displayFormat string if available
+  let departureTime = "N/A";
+  let arrivalTime = "N/A";
 
-  const arrivalTime =
-    typeof trip.arrivalTime === "string"
-      ? trip.arrivalTime
-      : trip.arrivalTimeObj
-      ? formatTime(trip.arrivalTimeObj)
-      : "N/A";
+  // Check if departure time is available
+  if (trip.departureTime) {
+    if (typeof trip.departureTime === "string") {
+      // If it's already a string format
+      departureTime = trip.departureTime;
+    } else if (trip.departureTime.displayFormat) {
+      // If it has a displayFormat property
+      departureTime = trip.departureTime.displayFormat;
+    } else {
+      // Otherwise, format it from the hour/minute properties
+      departureTime = formatTime(trip.departureTime);
+    }
+  } else if (trip.departureTimeObj) {
+    // Legacy format
+    departureTime = formatTime(trip.departureTimeObj);
+  }
+
+  // Check if arrival time is available
+  if (trip.arrivalTime) {
+    if (typeof trip.arrivalTime === "string") {
+      // If it's already a string format
+      arrivalTime = trip.arrivalTime;
+    } else if (trip.arrivalTime.displayFormat) {
+      // If it has a displayFormat property
+      arrivalTime = trip.arrivalTime.displayFormat;
+    } else {
+      // Otherwise, format it from the hour/minute properties
+      arrivalTime = formatTime(trip.arrivalTime);
+    }
+  } else if (trip.arrivalTimeObj) {
+    // Legacy format
+    arrivalTime = formatTime(trip.arrivalTimeObj);
+  }
 
   // Format waiting time
   let waitingTimeDisplay = "N/A";
@@ -256,21 +330,6 @@ function addTripToTable(trip) {
     } else {
       waitingTimeDisplay = "0m";
     }
-  }
-
-  // Format times - legacy support for older data format
-  function formatTime(timeObj) {
-    if (!timeObj) return "N/A";
-
-    const hour = timeObj.hour;
-    const minute = timeObj.minute.toString().padStart(2, "0");
-
-    // Convert to 12-hour format
-    const hour12 = hour % 12 || 12; // Convert 0 to 12
-    const period = hour < 12 ? "AM" : "PM";
-
-    // Format as HH:MM aa
-    return `${hour12.toString().padStart(2, "0")}:${minute} ${period}`;
   }
 
   // Format price
@@ -823,6 +882,7 @@ async function showEditTripModal(tripId) {
     }
 
     const trip = tripDoc.data();
+    console.log("Trip data for editing:", trip);
 
     // Fetch vehicles for the company
     const vehicles = await fetchCompanyVehicles();
@@ -839,57 +899,64 @@ async function showEditTripModal(tripId) {
       : new Date(trip.date);
     const formattedDate = tripDate.toISOString().split("T")[0];
 
-    // Get departure and arrival times in 12-hour format
-    // If stored as string (new format), use directly
-    // Otherwise, format from timeObj (old format)
+    // Get departure and arrival times safely - handle multiple possible formats
     let departureTime, arrivalTime;
 
-    if (typeof trip.departureTime === "string") {
-      // New format - already stored as 12-hour string
-      departureTime = trip.departureTime;
-    } else if (trip.departureTime && typeof trip.departureTime === "object") {
-      // Old format - TimeOfDay object
-      departureTime = formatTime(trip.departureTime);
+    // Check if departure time is available
+    if (trip.departureTime) {
+      if (typeof trip.departureTime === "string") {
+        // If it's already a string format (HH:MM AM/PM)
+        departureTime = trip.departureTime;
+      } else if (trip.departureTime.displayFormat) {
+        // If it has a displayFormat property
+        departureTime = trip.departureTime.displayFormat;
+      } else {
+        // Otherwise, format from hour/minute properties
+        departureTime = formatTime(trip.departureTime);
+      }
     } else {
       departureTime = "09:00 AM"; // Default
     }
 
-    if (typeof trip.arrivalTime === "string") {
-      // New format - already stored as 12-hour string
-      arrivalTime = trip.arrivalTime;
-    } else if (trip.arrivalTime && typeof trip.arrivalTime === "object") {
-      // Old format - TimeOfDay object
-      arrivalTime = formatTime(trip.arrivalTime);
+    // Check if arrival time is available
+    if (trip.arrivalTime) {
+      if (typeof trip.arrivalTime === "string") {
+        // If it's already a string format (HH:MM AM/PM)
+        arrivalTime = trip.arrivalTime;
+      } else if (trip.arrivalTime.displayFormat) {
+        // If it has a displayFormat property
+        arrivalTime = trip.arrivalTime.displayFormat;
+      } else {
+        // Otherwise, format from hour/minute properties
+        arrivalTime = formatTime(trip.arrivalTime);
+      }
     } else {
       arrivalTime = "10:00 AM"; // Default
     }
 
-    // Format times for display in 12-hour format
-    function formatTime(timeObj) {
-      if (!timeObj) return "";
-
-      // Convert to 12-hour format
-      const hour12 = timeObj.hour % 12 || 12; // Convert 0 to 12
-      const period = timeObj.hour < 12 ? "AM" : "PM";
-
-      return `${hour12.toString().padStart(2, "0")}:${timeObj.minute
-        .toString()
-        .padStart(2, "0")} ${period}`;
-    }
-
-    // Extract time components for select options
-    // We'll parse the 12-hour format time strings to get components
+    // Parse the 12-hour format time strings to get components
     function parseTimeForSelects(timeString) {
-      const [timePart, period] = timeString.split(" ");
-      const [hours, minutes] = timePart.split(":").map(Number);
+      if (!timeString || !timeString.includes(" ")) {
+        // Default to 9:00 AM if time string is invalid
+        return { hour12: 9, minute: 0, period: "AM" };
+      }
 
-      return {
-        hour12: hours,
-        minute: minutes,
-        period: period,
-      };
+      try {
+        const [timePart, period] = timeString.split(" ");
+        const [hours, minutes] = timePart.split(":").map(Number);
+
+        return {
+          hour12: hours || 12,
+          minute: minutes || 0,
+          period: period || "AM",
+        };
+      } catch (e) {
+        console.warn("Error parsing time:", timeString, e);
+        return { hour12: 9, minute: 0, period: "AM" };
+      }
     }
 
+    // Parse the times for the select components
     const departureParts = parseTimeForSelects(departureTime);
     const arrivalParts = parseTimeForSelects(arrivalTime);
 
@@ -911,17 +978,17 @@ async function showEditTripModal(tripId) {
                 </div>
                 
                 <div class="form-row">
-                    <div class="form-group">
+                <div class="form-group">
                         <label for="edit-trip-from">From</label>
-                        <input type="text" id="edit-trip-from" value="${
-                          trip.fromCity || ""
-                        }">
-                    </div>
-                    <div class="form-group">
+                    <input type="text" id="edit-trip-from" value="${
+                      trip.fromCity || ""
+                    }">
+                </div>
+                <div class="form-group">
                         <label for="edit-trip-to">To</label>
-                        <input type="text" id="edit-trip-to" value="${
-                          trip.toCity || ""
-                        }">
+                    <input type="text" id="edit-trip-to" value="${
+                      trip.toCity || ""
+                    }">
                     </div>
                 </div>
                 
@@ -1020,7 +1087,7 @@ async function showEditTripModal(tripId) {
                                                   .padStart(2, "0")}</option>`
                                             )}
                                         </select>
-                                    </div>
+                    </div>
                                     <div class="picker-column">
                                         <label>Minute</label>
                                         <select id="edit-arrival-minute">
