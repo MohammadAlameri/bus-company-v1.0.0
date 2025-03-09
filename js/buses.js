@@ -878,7 +878,7 @@ function confirmDeleteBus(busId) {
             <p>Are you sure you want to delete this bus?</p>
             <p class="warning">This action cannot be undone.</p>
             <div class="confirm-actions">
-                <button id="confirm-delete-cancel" class="secondary-btn">Cancel</button>
+                <button id="confirm-delete-cancel" class="danger-btn">Cancel</button>
                 <button id="confirm-delete-confirm" class="danger-btn">Delete</button>
             </div>
         </div>

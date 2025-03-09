@@ -414,7 +414,7 @@ function showAddDriverModal() {
       </div>
       
       <div class="form-footer">
-        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
         <button type="button" id="add-driver-submit-btn" class="primary-btn">Add Driver</button>
       </div>
     </form>
@@ -622,7 +622,7 @@ async function showEditDriverModal(driverId) {
                 </div>
                 
                 <div class="form-footer">
-                    <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                    <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Update Driver</button>
                 </div>
             </form>
@@ -686,7 +686,7 @@ function confirmDeleteDriver(driverId) {
         <p>This action cannot be undone.</p>
         
         <div class="form-footer">
-            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+            <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
             <button type="button" class="danger-btn" onclick="deleteDriver('${driverId}')">Delete</button>
         </div>
     `;

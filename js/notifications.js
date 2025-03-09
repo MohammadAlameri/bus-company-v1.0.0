@@ -569,7 +569,7 @@ function confirmDeleteNotification(notificationId) {
       </div>
       
       <div class="form-footer">
-        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
         <button type="button" class="danger-btn" onclick="deleteNotification('${notificationId}')">Delete</button>
       </div>
     </div>
@@ -692,7 +692,7 @@ function showNotificationDetails(notificationId) {
       }
       
       <div class="modal-footer">
-        <button type="button" class="outline-btn" onclick="hideModal()">Close</button>
+        <button type="button" class="danger-btn" onclick="hideModal()">Close</button>
         ${
           notification.read
             ? `<button type="button" class="secondary-btn" onclick="markNotificationAsUnread('${notification.id}'); hideModal();">

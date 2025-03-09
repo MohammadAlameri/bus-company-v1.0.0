@@ -908,7 +908,7 @@ function handlePasswordReset() {
         <input type="email" id="reset-email" placeholder="Enter your email">
       </div>
       <div class="form-footer">
-        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
         <button type="button" class="primary-btn" id="send-reset-link">Send Reset Link</button>
       </div>
     </div>

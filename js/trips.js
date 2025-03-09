@@ -529,7 +529,7 @@ async function showAddTripModal() {
                 </div>
                 
                 <div class="form-footer">
-                    <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                    <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Add Trip</button>
                 </div>
             </form>
@@ -1030,7 +1030,7 @@ async function showEditTripModal(tripId) {
                 </div>
                 
                 <div class="form-footer">
-                    <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                    <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Update Trip</button>
                 </div>
             </form>
@@ -1125,7 +1125,7 @@ function confirmDeleteTrip(tripId) {
         <p>This action cannot be undone.</p>
         
         <div class="form-footer">
-            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+            <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
             <button type="button" class="danger-btn" onclick="deleteTrip('${tripId}')">Delete</button>
         </div>
     `;

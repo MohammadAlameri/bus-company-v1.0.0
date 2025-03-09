@@ -130,23 +130,32 @@ function generateWeekdayHoursHTML() {
     .map(
       (day) => `
         <div class="weekday-row">
-            <div class="weekday-name">${day}</div>
+            <div class="weekday-name">
+              <span class="day-icon"><i class="far fa-calendar-day"></i></span>
+              <span>${day}</span>
+            </div>
             <div class="weekday-status">
-                <label class="switch">
+                <label class="toggle-switch">
                     <input type="checkbox" class="day-enabled" data-day="${day}" checked>
-                    <span class="slider round"></span>
+                    <span class="toggle-slider"></span>
                 </label>
                 <span class="status-text">Open</span>
             </div>
             <div class="weekday-times">
                 <div class="time-input-group">
-                    <input type="time" class="time-input start-time" data-day="${day}" value="09:00">
-                    <span>to</span>
-                    <input type="time" class="time-input end-time" data-day="${day}" value="17:00">
+                    <div class="time-input-wrapper">
+                        <i class="far fa-clock time-icon"></i>
+                        <input type="time" class="time-input start-time" data-day="${day}" value="09:00">
+                    </div>
+                    <span class="time-separator">to</span>
+                    <div class="time-input-wrapper">
+                        <i class="far fa-clock time-icon"></i>
+                        <input type="time" class="time-input end-time" data-day="${day}" value="17:00">
+                    </div>
                 </div>
             </div>
         </div>
-    `
+      `
     )
     .join("");
 }
@@ -429,12 +438,12 @@ async function loadTimeOffData() {
         <table class="data-table" id="time-off-table">
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Frequency</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th><i class="fas fa-tag mr-2"></i>Title</th>
+              <th><i class="fas fa-calendar-alt mr-2"></i>Date</th>
+              <th><i class="fas fa-clock mr-2"></i>Time</th>
+              <th><i class="fas fa-repeat mr-2"></i>Frequency</th>
+              <th><i class="fas fa-info-circle mr-2"></i>Status</th>
+              <th><i class="fas fa-cogs mr-2"></i>Actions</th>
             </tr>
           </thead>
           <tbody id="time-off-table-body">
@@ -443,7 +452,6 @@ async function loadTimeOffData() {
                 <div class="loading-state">
                   <i class="fas fa-spinner fa-spin"></i>
                   <p>Loading time off records...</p>
-                  <small>Company ID: ${currentCompany?.id || "N/A"}</small>
                 </div>
               </td>
             </tr>
@@ -886,6 +894,14 @@ function addTimeOffActionListeners() {
   });
 }
 
+// Load required Firebase functions
+let getTimestamp;
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Get timestamp function from Firebase
+  getTimestamp = firebase.firestore.Timestamp.now;
+});
+
 // Show add time off modal
 function showAddTimeOffModal() {
   const today = new Date().toISOString().split("T")[0];
@@ -894,12 +910,12 @@ function showAddTimeOffModal() {
   const modalContent = `
     <div class="add-time-off-form">
       <div class="form-group">
-        <label for="time-off-reason">Title</label>
+        <label for="time-off-reason">Title <span class="required">*</span></label>
         <input type="text" id="time-off-reason" placeholder="Enter time off title">
       </div>
       
       <div class="form-group">
-        <label for="time-off-frequency">Frequency</label>
+        <label for="time-off-frequency">Frequency <span class="required">*</span></label>
         <select id="time-off-frequency">
           <option value="once">Once</option>
           <option value="daily">Daily</option>
@@ -908,7 +924,7 @@ function showAddTimeOffModal() {
       </div>
       
       <div class="form-group day-of-week-group" style="display: none;">
-        <label for="time-off-day">Day of Week</label>
+        <label for="time-off-day">Day of Week <span class="required">*</span></label>
         <select id="time-off-day">
           <option value="Monday">Monday</option>
           <option value="Tuesday">Tuesday</option>
@@ -921,23 +937,23 @@ function showAddTimeOffModal() {
       </div>
       
       <div class="form-group">
-        <label for="time-off-start">Specific Day</label>
-        <input type="date" id="time-off-start" min="${today}">
+        <label for="time-off-start">Specific Day <span class="required">*</span></label>
+        <input type="date" id="time-off-start" min="${today}" value="${today}">
       </div>
       
       <div class="form-group">
-        <label for="time-off-start-time">Start Time</label>
+        <label for="time-off-start-time">Start Time <span class="required">*</span></label>
         <input type="time" id="time-off-start-time" value="${currentTime}">
       </div>
       
       <div class="form-group">
-        <label for="time-off-end-time">End Time</label>
+        <label for="time-off-end-time">End Time <span class="required">*</span></label>
         <input type="time" id="time-off-end-time" value="${currentTime}">
       </div>
       
       <div class="form-actions">
-        <button class="secondary-btn cancel-modal-btn">Cancel</button>
-        <button class="primary-btn" id="add-time-off-btn">Add Time Off</button>
+        <button class="danger-btn cancel-modal-btn">Cancel</button>
+        <button class="primary-btn" id="add-time-off-btn"><i class="fas fa-plus"></i> Add Time Off</button>
       </div>
     </div>
   `;
@@ -959,7 +975,17 @@ function showAddTimeOffModal() {
   // Add event listener for add button
   document
     .getElementById("add-time-off-btn")
-    .addEventListener("click", addTimeOff);
+    .addEventListener("click", function (e) {
+      e.preventDefault();
+      addTimeOff();
+    });
+
+  // Add event listener for cancel button
+  document
+    .querySelector(".cancel-modal-btn")
+    .addEventListener("click", function () {
+      hideModal();
+    });
 }
 
 // Add time off record
@@ -985,6 +1011,12 @@ async function addTimeOff() {
       return;
     }
 
+    // Show loading message and disable button
+    const saveButton = document.getElementById("add-time-off-btn");
+    const originalButtonText = saveButton.innerHTML;
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveButton.disabled = true;
+
     // Convert time inputs to TimeOfDay objects (stored as strings in Firestore)
     const startTime = startTimeInput;
     const endTime = endTimeInput;
@@ -999,13 +1031,10 @@ async function addTimeOff() {
         "Error: Company data is not available. Please refresh the page.",
         "error"
       );
+      saveButton.innerHTML = originalButtonText;
+      saveButton.disabled = false;
       return;
     }
-
-    // Show loading message
-    showMessage("Adding time off record...", "info");
-    console.log("Adding time off record with title:", title);
-    console.log("Current company ID:", currentCompany.id);
 
     // Create the time off data object matching the schema
     const timeOffData = {
@@ -1016,12 +1045,14 @@ async function addTimeOff() {
       frequency: frequency, // "once", "weekly", or "daily"
       dayOfWeek: dayOfWeek, // Only used if frequency is weekly
       specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
-      createdAt: getTimestamp(),
+      createdAt: firebase.firestore.Timestamp.now(),
+      status: "active",
     };
 
     console.log("Time off data to be saved:", JSON.stringify(timeOffData));
 
     // Add to Firestore
+    const db = firebase.firestore();
     const docRef = await db.collection("timeOff").add(timeOffData);
     console.log("Time off record added with ID:", docRef.id);
 
@@ -1040,13 +1071,25 @@ async function addTimeOff() {
     }, 500);
 
     // Log activity
-    await logActivity("create", "timeOff", currentCompany.id);
+    try {
+      await logActivity("create", "timeOff", currentCompany.id);
+    } catch (logError) {
+      console.error("Error logging activity:", logError);
+      // Continue since this is non-critical
+    }
 
     // Show success message
     showMessage("Time off record added successfully", "success");
   } catch (error) {
     console.error("Error adding time off record:", error);
     showMessage("Error adding time off record: " + error.message, "error");
+
+    // Reset button state
+    const saveButton = document.getElementById("add-time-off-btn");
+    if (saveButton) {
+      saveButton.innerHTML = '<i class="fas fa-plus"></i> Add Time Off';
+      saveButton.disabled = false;
+    }
   }
 }
 
@@ -1161,7 +1204,7 @@ async function showEditTimeOffModal(timeOffId) {
         </div>
         
         <div class="form-actions">
-          <button class="secondary-btn cancel-modal-btn">Cancel</button>
+          <button class="danger-btn cancel-modal-btn">Cancel</button>
           <button class="primary-btn" id="update-time-off-btn">Update Time Off</button>
         </div>
       </div>
@@ -1255,7 +1298,7 @@ function confirmDeleteTimeOff(timeOffId) {
         <div class="confirmation-modal">
             <p>Are you sure you want to delete this time off record?</p>
             <div class="form-footer">
-                <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+                <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
                 <button type="button" class="danger-btn" onclick="deleteTimeOff('${timeOffId}')">Delete</button>
             </div>
         </div>

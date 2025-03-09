@@ -620,7 +620,7 @@ async function showAppointmentDetails(appointmentId) {
                 </div>
                 
                 <div class="form-footer">
-                    <button type="button" class="outline-btn" onclick="hideModal()">Close</button>
+                    <button type="button" class="danger-btn" onclick="hideModal()">Close</button>
                     ${
                       appointment.appointmentStatus === "pending"
                         ? `
@@ -646,7 +646,7 @@ function confirmApproveAppointment(appointmentId) {
         <p>Are you sure you want to approve this appointment?</p>
         
         <div class="form-footer">
-            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+            <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
             <button type="button" class="secondary-btn" onclick="approveAppointment('${appointmentId}')">Approve</button>
         </div>
     `;
@@ -660,7 +660,7 @@ function confirmRejectAppointment(appointmentId) {
         <p>Are you sure you want to reject this appointment?</p>
         
         <div class="form-footer">
-            <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+            <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
             <button type="button" class="danger-btn" onclick="rejectAppointment('${appointmentId}')">Reject</button>
         </div>
     `;

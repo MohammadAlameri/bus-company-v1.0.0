@@ -427,7 +427,7 @@ function showReplyModal(reviewId) {
       </div>
       
       <div class="form-footer">
-        <button type="button" class="outline-btn" onclick="hideModal()">Cancel</button>
+        <button type="button" class="danger-btn" onclick="hideModal()">Cancel</button>
         <button type="button" class="primary-btn" onclick="submitReply('${reviewId}')">Submit Reply</button>
       </div>
     </div>
