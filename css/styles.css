@@ -1024,7 +1024,7 @@ input:checked + .toggle-slider:before {
 }
 
 .data-table th i {
-    margin-right: 8px;
+    margin-right: 5px;
     color: var(--primary-color);
 }
 
@@ -1032,6 +1032,24 @@ input:checked + .toggle-slider:before {
     padding: 12px 15px;
     border-bottom: 1px solid #e0e4e8;
     color: var(--gray-dark);
+}
+
+.data-table td:nth-child(4), /* Departure Time */
+.data-table td:nth-child(5), /* Arrival Time */
+.data-table td:nth-child(6) { /* Waiting Time */
+    font-weight: 500;
+}
+
+.data-table td:nth-child(4) { /* Departure Time */
+    color: #0066cc;
+}
+
+.data-table td:nth-child(5) { /* Arrival Time */
+    color: #00994c;
+}
+
+.data-table td:nth-child(6) { /* Waiting Time */
+    color: #cc6600;
 }
 
 .data-table tbody tr:last-child td {

@@ -35,19 +35,20 @@ function loadTrips() {
             <table class="data-table" id="trips-table">
                 <thead>
                     <tr>
-                        <th>From</th>
-                        <th>To</th>
+                        <th>Vehicle</th>
+                        <th>Route</th>
                         <th>Date</th>
-                        <th>Time</th>
-                        <th>Bus</th>
+                        <th><i class="fas fa-plane-departure mr-1"></i> Departure</th>
+                        <th><i class="fas fa-plane-arrival mr-1"></i> Arrival</th>
+                        <th><i class="fas fa-clock mr-1"></i> Waiting</th>
+                        <th>Type</th>
                         <th>Price</th>
-                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="trips-table-body">
                     <tr>
-                        <td colspan="8" style="text-align: center;">Loading trips...</td>
+                        <td colspan="9" style="text-align: center;">Loading trips...</td>
                     </tr>
                 </tbody>
             </table>
@@ -101,7 +102,7 @@ async function fetchTrips() {
       console.error("Current company information not available");
       tripsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center;">Error: Company information not available. Please try logging out and back in.</td>
+                    <td colspan="9" style="text-align: center;">Error: Company information not available. Please try logging out and back in.</td>
                 </tr>
             `;
       return;
@@ -117,7 +118,7 @@ async function fetchTrips() {
     if (snapshot.empty) {
       tripsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center;">No trips found</td>
+                    <td colspan="9" style="text-align: center;">No trips found</td>
                 </tr>
             `;
       return;
@@ -182,7 +183,7 @@ async function fetchTrips() {
     if (tripsTableBody) {
       tripsTableBody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center;">Error loading trip data: ${error.message}</td>
+                <td colspan="9" style="text-align: center;">Error loading trip data: ${error.message}</td>
             </tr>
         `;
     }
@@ -225,16 +226,42 @@ function addTripToTable(trip) {
     });
   }
 
-  // Format times
-  const formatTime = (timeObj) => {
+  // Get the time values - directly use the 12-hour formatted time if available
+  const departureTime =
+    typeof trip.departureTime === "string"
+      ? trip.departureTime
+      : trip.departureTimeObj
+      ? formatTime(trip.departureTimeObj)
+      : "N/A";
+
+  const arrivalTime =
+    typeof trip.arrivalTime === "string"
+      ? trip.arrivalTime
+      : trip.arrivalTimeObj
+      ? formatTime(trip.arrivalTimeObj)
+      : "N/A";
+
+  // Format waiting time
+  let waitingTimeDisplay = "N/A";
+  if (trip.waitingTime) {
+    const hours = trip.waitingTime.hour || 0;
+    const minutes = trip.waitingTime.minute || 0;
+
+    if (hours > 0 && minutes > 0) {
+      waitingTimeDisplay = `${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      waitingTimeDisplay = `${hours}h`;
+    } else if (minutes > 0) {
+      waitingTimeDisplay = `${minutes}m`;
+    } else {
+      waitingTimeDisplay = "0m";
+    }
+  }
+
+  // Format times - legacy support for older data format
+  function formatTime(timeObj) {
     if (!timeObj) return "N/A";
 
-    // If the displayFormat is available, use it
-    if (timeObj.displayFormat) {
-      return timeObj.displayFormat;
-    }
-
-    // Otherwise format it from hour and minute (fallback for older data)
     const hour = timeObj.hour;
     const minute = timeObj.minute.toString().padStart(2, "0");
 
@@ -244,10 +271,7 @@ function addTripToTable(trip) {
 
     // Format as HH:MM aa
     return `${hour12.toString().padStart(2, "0")}:${minute} ${period}`;
-  };
-
-  const departureTime = formatTime(trip.departureTime);
-  const arrivalTime = formatTime(trip.arrivalTime);
+  }
 
   // Format price
   const price = trip.price ? `${trip.price} ${trip.currency || ""}` : "N/A";
@@ -255,42 +279,35 @@ function addTripToTable(trip) {
   // Get vehicle info
   const vehicleInfo = trip.vehicleDetails
     ? `${trip.vehicleDetails.vehicleType} (${trip.vehicleDetails.vehicleNo})`
-    : "Unknown Vehicle";
+    : "N/A";
 
-  // Create table row
-  const tr = document.createElement("tr");
-  tr.setAttribute("data-id", trip.id);
-
-  // Check if trip is past or future
-  const isPastTrip =
-    trip.date &&
-    new Date(trip.date.toDate ? trip.date.toDate() : trip.date) < new Date();
-
-  if (isPastTrip) {
-    tr.classList.add("past-trip");
-  }
-
-  tr.innerHTML = `
-        <td>${trip.fromCity || "N/A"}</td>
-        <td>${trip.toCity || "N/A"}</td>
-        <td>${formattedDate}</td>
-        ${arrivalTime}</td> - <td>${departureTime} 
-        <td>${vehicleInfo}</td>
-        <td>${price}</td>
-        <td>${isPastTrip ? "Past" : "Upcoming"}</td>
-        <td>
-            <div class="table-actions">
-                <button class="edit-btn" data-id="${trip.id}">
+  // Create row
+  const row = `
+        <tr data-id="${trip.id}">
+            <td>${vehicleInfo}</td>
+            <td>${trip.fromCity} to ${trip.toCity}</td>
+            <td>${formattedDate}</td>
+            <td>${departureTime}</td>
+            <td>${arrivalTime}</td>
+            <td>${waitingTimeDisplay}</td>
+            <td>${trip.routeType || "N/A"}</td>
+            <td>${price}</td>
+            <td class="table-actions">
+                <button class="edit-btn" onclick="showEditTripModal('${
+                  trip.id
+                }')">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="delete-btn" data-id="${trip.id}">
+                <button class="delete-btn" onclick="confirmDeleteTrip('${
+                  trip.id
+                }')">
                     <i class="fas fa-trash"></i>
                 </button>
-            </div>
-        </td>
+            </td>
+        </tr>
     `;
 
-  tripsTableBody.appendChild(tr);
+  tripsTableBody.innerHTML += row;
 }
 
 // Add event listeners to trip action buttons
@@ -318,25 +335,41 @@ function addTripActionListeners() {
 function filterTrips(searchTerm = "", filterValue = "all") {
   const rows = document.querySelectorAll("#trips-table-body tr");
 
+  // Convert search term to lowercase for case-insensitive matching
+  searchTerm = searchTerm.toLowerCase();
+
   rows.forEach((row) => {
     // Skip rows with colspan (like "No trips found")
     if (row.cells.length <= 2) return;
 
-    const fromCity = row.cells[0].textContent.toLowerCase();
-    const toCity = row.cells[1].textContent.toLowerCase();
-    const date = row.cells[2].textContent.toLowerCase();
+    // Get text from relevant cells
+    const vehicleInfo = row.cells[0].textContent.toLowerCase();
+    const routeInfo = row.cells[1].textContent.toLowerCase();
+    const dateInfo = row.cells[2].textContent.toLowerCase();
+    const departureInfo = row.cells[3].textContent.toLowerCase();
+    const arrivalInfo = row.cells[4].textContent.toLowerCase();
 
     // Check search term match
     const matchesSearch =
       !searchTerm ||
-      fromCity.includes(searchTerm) ||
-      toCity.includes(searchTerm) ||
-      date.includes(searchTerm);
+      vehicleInfo.includes(searchTerm) ||
+      routeInfo.includes(searchTerm) ||
+      dateInfo.includes(searchTerm) ||
+      departureInfo.includes(searchTerm) ||
+      arrivalInfo.includes(searchTerm);
 
     // Check filter match
     let matchesFilter = true;
     if (filterValue !== "all") {
-      const isPastTrip = row.classList.contains("past-trip");
+      // Determine if trip is in the past based on date
+      const dateCell = row.cells[2].textContent;
+      const tripDate = new Date(dateCell);
+      const currentDate = new Date();
+
+      // Set time to beginning of day for fair comparison
+      currentDate.setHours(0, 0, 0, 0);
+
+      const isPastTrip = tripDate < currentDate;
       matchesFilter =
         (filterValue === "past" && isPastTrip) ||
         (filterValue === "upcoming" && !isPastTrip);
@@ -806,16 +839,35 @@ async function showEditTripModal(tripId) {
       : new Date(trip.date);
     const formattedDate = tripDate.toISOString().split("T")[0];
 
+    // Get departure and arrival times in 12-hour format
+    // If stored as string (new format), use directly
+    // Otherwise, format from timeObj (old format)
+    let departureTime, arrivalTime;
+
+    if (typeof trip.departureTime === "string") {
+      // New format - already stored as 12-hour string
+      departureTime = trip.departureTime;
+    } else if (trip.departureTime && typeof trip.departureTime === "object") {
+      // Old format - TimeOfDay object
+      departureTime = formatTime(trip.departureTime);
+    } else {
+      departureTime = "09:00 AM"; // Default
+    }
+
+    if (typeof trip.arrivalTime === "string") {
+      // New format - already stored as 12-hour string
+      arrivalTime = trip.arrivalTime;
+    } else if (trip.arrivalTime && typeof trip.arrivalTime === "object") {
+      // Old format - TimeOfDay object
+      arrivalTime = formatTime(trip.arrivalTime);
+    } else {
+      arrivalTime = "10:00 AM"; // Default
+    }
+
     // Format times for display in 12-hour format
-    const formatTime = (timeObj) => {
+    function formatTime(timeObj) {
       if (!timeObj) return "";
 
-      // If displayFormat is available, use it
-      if (timeObj.displayFormat) {
-        return timeObj.displayFormat;
-      }
-
-      // Otherwise format from hour and minute (fallback for older data)
       // Convert to 12-hour format
       const hour12 = timeObj.hour % 12 || 12; // Convert 0 to 12
       const period = timeObj.hour < 12 ? "AM" : "PM";
@@ -823,33 +875,23 @@ async function showEditTripModal(tripId) {
       return `${hour12.toString().padStart(2, "0")}:${timeObj.minute
         .toString()
         .padStart(2, "0")} ${period}`;
-    };
-
-    const departureTime = formatTime(trip.departureTime);
-    const arrivalTime = formatTime(trip.arrivalTime);
+    }
 
     // Extract time components for select options
-    const getDepartureHour12 = trip.departureTime
-      ? trip.departureTime.hour % 12 || 12
-      : 12;
-    const getDepartureMinute = trip.departureTime
-      ? trip.departureTime.minute
-      : 0;
-    const getDeparturePeriod = trip.departureTime
-      ? trip.departureTime.hour < 12
-        ? "AM"
-        : "PM"
-      : "AM";
+    // We'll parse the 12-hour format time strings to get components
+    function parseTimeForSelects(timeString) {
+      const [timePart, period] = timeString.split(" ");
+      const [hours, minutes] = timePart.split(":").map(Number);
 
-    const getArrivalHour12 = trip.arrivalTime
-      ? trip.arrivalTime.hour % 12 || 12
-      : 12;
-    const getArrivalMinute = trip.arrivalTime ? trip.arrivalTime.minute : 0;
-    const getArrivalPeriod = trip.arrivalTime
-      ? trip.arrivalTime.hour < 12
-        ? "AM"
-        : "PM"
-      : "AM";
+      return {
+        hour12: hours,
+        minute: minutes,
+        period: period,
+      };
+    }
+
+    const departureParts = parseTimeForSelects(departureTime);
+    const arrivalParts = parseTimeForSelects(arrivalTime);
 
     // Calculate waiting time in minutes
     const waitingMinutes =
@@ -904,7 +946,7 @@ async function showEditTripModal(tripId) {
                                             ).map(
                                               (h) =>
                                                 `<option value="${h}" ${
-                                                  h === getDepartureHour12
+                                                  h === departureParts.hour12
                                                     ? "selected"
                                                     : ""
                                                 }>${h
@@ -923,7 +965,7 @@ async function showEditTripModal(tripId) {
                                               // Find closest 5-minute interval
                                               const closestMinute =
                                                 Math.round(
-                                                  getDepartureMinute / 5
+                                                  departureParts.minute / 5
                                                 ) * 5;
                                               return `<option value="${m}" ${
                                                 m === closestMinute
@@ -939,12 +981,12 @@ async function showEditTripModal(tripId) {
                                         <label>AM/PM</label>
                                         <select id="edit-departure-period">
                                             <option value="AM" ${
-                                              getDeparturePeriod === "AM"
+                                              departureParts.period === "AM"
                                                 ? "selected"
                                                 : ""
                                             }>AM</option>
                                             <option value="PM" ${
-                                              getDeparturePeriod === "PM"
+                                              departureParts.period === "PM"
                                                 ? "selected"
                                                 : ""
                                             }>PM</option>
@@ -970,7 +1012,7 @@ async function showEditTripModal(tripId) {
                                             ).map(
                                               (h) =>
                                                 `<option value="${h}" ${
-                                                  h === getArrivalHour12
+                                                  h === arrivalParts.hour12
                                                     ? "selected"
                                                     : ""
                                                 }>${h
@@ -989,7 +1031,7 @@ async function showEditTripModal(tripId) {
                                               // Find closest 5-minute interval
                                               const closestMinute =
                                                 Math.round(
-                                                  getArrivalMinute / 5
+                                                  arrivalParts.minute / 5
                                                 ) * 5;
                                               return `<option value="${m}" ${
                                                 m === closestMinute
@@ -1005,12 +1047,12 @@ async function showEditTripModal(tripId) {
                                         <label>AM/PM</label>
                                         <select id="edit-arrival-period">
                                             <option value="AM" ${
-                                              getArrivalPeriod === "AM"
+                                              arrivalParts.period === "AM"
                                                 ? "selected"
                                                 : ""
                                             }>AM</option>
                                             <option value="PM" ${
-                                              getArrivalPeriod === "PM"
+                                              arrivalParts.period === "PM"
                                                 ? "selected"
                                                 : ""
                                             }>PM</option>
@@ -1237,20 +1279,9 @@ async function handleAddTrip(e) {
       return;
     }
 
-    // Format departure and arrival times in 12-hour format (HH:MM aa)
-    const formattedDepartureTime = formatTimeFor12Hour(
-      `${departureTimeObj.hour
-        .toString()
-        .padStart(2, "0")}:${departureTimeObj.minute
-        .toString()
-        .padStart(2, "0")}`
-    );
-
-    const formattedArrivalTime = formatTimeFor12Hour(
-      `${arrivalTimeObj.hour
-        .toString()
-        .padStart(2, "0")}:${arrivalTimeObj.minute.toString().padStart(2, "0")}`
-    );
+    // Store the 12-hour format times directly
+    const departureTime12h = departureInput.value.trim();
+    const arrivalTime12h = arrivalInput.value.trim();
 
     // Create trip
     const tripData = {
@@ -1259,18 +1290,9 @@ async function handleAddTrip(e) {
       toCity: toInput.value,
       date: new Date(dateInput.value),
 
-      // Store time in TimeOfDay object format but with 12-hour display format
-      departureTime: {
-        hour: departureTimeObj.hour,
-        minute: departureTimeObj.minute,
-        displayFormat: formattedDepartureTime, // Store the display format
-      },
-
-      arrivalTime: {
-        hour: arrivalTimeObj.hour,
-        minute: arrivalTimeObj.minute,
-        displayFormat: formattedArrivalTime, // Store the display format
-      },
+      // Store the time in 12-hour format (HH:MM aa)
+      departureTime: departureTime12h,
+      arrivalTime: arrivalTime12h,
 
       waitingTime: {
         hour: waitingHours,
@@ -1300,7 +1322,7 @@ async function handleAddTrip(e) {
     fetchTrips();
   } catch (error) {
     console.error("Error adding trip:", error);
-    showMessage(`Error adding trip: ${error.message}`, "error");
+    showMessage("Error adding trip: " + error.message, "error");
   }
 }
 
@@ -1355,20 +1377,9 @@ async function handleEditTrip(e) {
       return;
     }
 
-    // Format departure and arrival times in 12-hour format (HH:MM aa)
-    const formattedDepartureTime = formatTimeFor12Hour(
-      `${departureTimeObj.hour
-        .toString()
-        .padStart(2, "0")}:${departureTimeObj.minute
-        .toString()
-        .padStart(2, "0")}`
-    );
-
-    const formattedArrivalTime = formatTimeFor12Hour(
-      `${arrivalTimeObj.hour
-        .toString()
-        .padStart(2, "0")}:${arrivalTimeObj.minute.toString().padStart(2, "0")}`
-    );
+    // Store the 12-hour format times directly
+    const departureTime12h = departureInput.value.trim();
+    const arrivalTime12h = arrivalInput.value.trim();
 
     // Create trip update
     const tripUpdate = {
@@ -1377,18 +1388,9 @@ async function handleEditTrip(e) {
       toCity: toInput.value,
       date: new Date(dateInput.value),
 
-      // Store time in TimeOfDay object format but with 12-hour display format
-      departureTime: {
-        hour: departureTimeObj.hour,
-        minute: departureTimeObj.minute,
-        displayFormat: formattedDepartureTime, // Store the display format
-      },
-
-      arrivalTime: {
-        hour: arrivalTimeObj.hour,
-        minute: arrivalTimeObj.minute,
-        displayFormat: formattedArrivalTime, // Store the display format
-      },
+      // Store the time in 12-hour format (HH:MM aa)
+      departureTime: departureTime12h,
+      arrivalTime: arrivalTime12h,
 
       waitingTime: {
         hour: waitingHours,
@@ -1413,7 +1415,7 @@ async function handleEditTrip(e) {
     fetchTrips();
   } catch (error) {
     console.error("Error updating trip:", error);
-    showMessage(`Error updating trip: ${error.message}`, "error");
+    showMessage("Error updating trip: " + error.message, "error");
   }
 }
 

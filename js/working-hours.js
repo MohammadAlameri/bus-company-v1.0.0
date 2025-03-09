@@ -564,7 +564,6 @@ async function loadTimeOffData() {
         <div class="empty-state">
           <i class="fas fa-calendar-times"></i>
           <p>No time off records found</p>
-          <small>Company ID: ${currentCompany.id}</small>
         </div>
             </td>
           </tr>
@@ -675,7 +674,6 @@ async function loadTimeOffData() {
                   <div class="empty-state">
                     <i class="fas fa-calendar-times"></i>
                     <p>No time off records found</p>
-                    <small>Company ID: ${currentCompany.id}</small>
                   </div>
                 </td>
               </tr>

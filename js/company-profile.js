@@ -501,6 +501,14 @@ function showEditAddressModal() {
 
 // Display the address form with pre-filled data
 function showAddressForm(addressData) {
+  // Extract lat-lon values for directly inputting them
+  let latValue = "";
+  let lonValue = "";
+  if (addressData.latLon) {
+    latValue = addressData.latLon.latitude.toFixed(6);
+    lonValue = addressData.latLon.longitude.toFixed(6);
+  }
+
   const modalContent = `
     <div class="edit-address-form">
       <div class="form-section-heading">
@@ -509,16 +517,16 @@ function showAddressForm(addressData) {
 
       <div class="form-row">
         <div class="form-group">
+          <label for="edit-company-street-number">Street Number <span class="required">*</span></label>
+          <input type="text" id="edit-company-street-number" placeholder="123" value="${
+            addressData.streetNumber || ""
+          }" required>
+        </div>
+        <div class="form-group">
           <label for="edit-company-street-name">Street Name <span class="required">*</span></label>
           <input type="text" id="edit-company-street-name" placeholder="Main Street" value="${
             addressData.streetName || ""
           }" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-company-street-number">Building/House Number</label>
-          <input type="text" id="edit-company-street-number" placeholder="123" value="${
-            addressData.streetNumber || ""
-          }">
         </div>
       </div>
       
@@ -574,7 +582,7 @@ function showAddressForm(addressData) {
           </select>
         </div>
         <div class="form-group">
-          <label for="edit-company-next-to">Landmark</label>
+          <label for="edit-company-next-to">Next To / Landmark</label>
           <input type="text" id="edit-company-next-to" placeholder="Near Central Bank" value="${
             addressData.nextTo || ""
           }">
@@ -582,7 +590,37 @@ function showAddressForm(addressData) {
       </div>
       
       <div class="form-section-heading">
-        <h4>Map Location <span class="required">*</span></h4>
+        <h4>Location Coordinates <span class="required">*</span></h4>
+      </div>
+      
+      <div class="form-row coordinates-row">
+        <div class="form-group">
+          <label for="edit-company-lat">Latitude</label>
+          <input type="text" id="edit-company-lat" placeholder="15.3694" value="${latValue}">
+        </div>
+        <div class="form-group">
+          <label for="edit-company-lon">Longitude</label>
+          <input type="text" id="edit-company-lon" placeholder="44.191" value="${lonValue}">
+        </div>
+        <div class="form-group submit-coords">
+          <button type="button" id="set-coordinates-btn" class="primary-btn">
+            <i class="fas fa-check"></i> Set Coordinates
+          </button>
+        </div>
+      </div>
+      
+      <div class="coordinates-display">
+        <span id="lat-lng-display" class="${
+          addressData.latLon ? "has-coordinates" : "no-coordinates"
+        }">
+          ${
+            addressData.latLon
+              ? `<i class="fas fa-check-circle"></i> Coordinates set: ${addressData.latLon.latitude.toFixed(
+                  6
+                )}, ${addressData.latLon.longitude.toFixed(6)}`
+              : '<i class="fas fa-exclamation-circle"></i> No location selected'
+          }
+        </span>
       </div>
       
       <div class="map-section">
@@ -592,20 +630,6 @@ function showAddressForm(addressData) {
           <button type="button" id="get-location-btn" class="location-btn">
             <i class="fas fa-map-marker-alt"></i> Use My Current Location
           </button>
-          
-          <div class="coordinates-display">
-            <span id="lat-lng-display" class="${
-              addressData.latLon ? "has-coordinates" : "no-coordinates"
-            }">
-              ${
-                addressData.latLon
-                  ? `<i class="fas fa-check-circle"></i> Coordinates set: ${addressData.latLon.latitude.toFixed(
-                      6
-                    )}, ${addressData.latLon.longitude.toFixed(6)}`
-                  : '<i class="fas fa-exclamation-circle"></i> No location selected'
-              }
-            </span>
-          </div>
         </div>
       </div>
       
@@ -630,7 +654,7 @@ function showAddressForm(addressData) {
     .edit-address-form {
       max-width: 800px;
       margin: 0 auto;
-      padding: 0 15px;
+      padding: 20px;
     }
     
     .form-section-heading {
@@ -648,13 +672,55 @@ function showAddressForm(addressData) {
       display: flex;
       flex-wrap: wrap;
       margin: 0 -10px;
+      padding: 8px 0;
     }
     
     .form-group {
       flex: 1;
       min-width: 250px;
       padding: 0 10px;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 15px;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+      outline: none;
+    }
+    
+    .coordinates-row {
+      background-color: #f8f9fa;
+      border-radius: 6px;
+      padding: 12px 6px;
+      margin-bottom: 10px;
+    }
+    
+    .submit-coords {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      min-width: 120px;
+    }
+    
+    #set-coordinates-btn {
+      height: 42px;
+      white-space: nowrap;
     }
     
     .address-map {
@@ -690,12 +756,12 @@ function showAddressForm(addressData) {
     
     .coordinates-display {
       flex: 1;
-      padding: 8px 12px;
+      padding: 12px 15px;
       background-color: #f9f9f9;
       border-radius: 4px;
       border: 1px solid #e0e0e0;
-      font-size: 14px;
-      min-width: 250px;
+      font-size: 15px;
+      margin-bottom: 15px;
     }
     
     .has-coordinates {
@@ -711,6 +777,15 @@ function showAddressForm(addressData) {
     .required {
       color: var(--danger-color);
       margin-left: 3px;
+    }
+    
+    .form-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
     }
     
     @media (max-width: 768px) {
@@ -750,14 +825,105 @@ function showAddressForm(addressData) {
     .getElementById("get-location-btn")
     .addEventListener("click", getCurrentLocation);
 
+  // Add click event for the "Set Coordinates" button
+  document
+    .getElementById("set-coordinates-btn")
+    .addEventListener("click", function () {
+      const latInput = document.getElementById("edit-company-lat");
+      const lonInput = document.getElementById("edit-company-lon");
+
+      const lat = parseFloat(latInput.value.trim());
+      const lon = parseFloat(lonInput.value.trim());
+
+      if (isNaN(lat) || isNaN(lon)) {
+        showMessage(
+          "Please enter valid latitude and longitude values",
+          "error"
+        );
+        return;
+      }
+
+      if (lat < -90 || lat > 90) {
+        showMessage("Latitude must be between -90 and 90 degrees", "error");
+        return;
+      }
+
+      if (lon < -180 || lon > 180) {
+        showMessage("Longitude must be between -180 and 180 degrees", "error");
+        return;
+      }
+
+      // Update the map with the new coordinates
+      const newLatLng = {
+        latitude: lat,
+        longitude: lon,
+      };
+
+      // Update the map
+      const map = window.addressMap; // Get the current map instance
+      if (map) {
+        const newPosition = { lat: lat, lng: lon };
+        map.setCenter(newPosition);
+
+        // Update or create the marker
+        if (window.addressMarker) {
+          window.addressMarker.setPosition(newPosition);
+          window.addressMarker.setAnimation(google.maps.Animation.DROP);
+        } else {
+          window.addressMarker = new google.maps.Marker({
+            position: newPosition,
+            map: map,
+            draggable: true,
+            animation: google.maps.Animation.DROP,
+          });
+
+          // Add drag event listener
+          google.maps.event.addListener(
+            window.addressMarker,
+            "dragend",
+            function () {
+              const position = window.addressMarker.getPosition();
+              const dragLatLng = {
+                latitude: position.lat(),
+                longitude: position.lng(),
+              };
+              updateLatLngDisplay(dragLatLng);
+
+              // Also update the input fields
+              document.getElementById("edit-company-lat").value = position
+                .lat()
+                .toFixed(6);
+              document.getElementById("edit-company-lon").value = position
+                .lng()
+                .toFixed(6);
+
+              // Try reverse geocoding
+              tryReverseGeocode(position.lat(), position.lng());
+            }
+          );
+        }
+      }
+
+      // Update the coordinates display
+      updateLatLngDisplay(newLatLng);
+
+      // Show success message
+      showMessage("Coordinates set successfully", "success");
+    });
+
   // Add click event for the save button
   document
     .getElementById("save-address-btn")
-    .addEventListener("click", validateAndUpdateAddress);
+    .addEventListener("click", function () {
+      validateAndUpdateAddress();
+    });
 }
 
 // Function to validate form fields before saving
 function validateAndUpdateAddress() {
+  const streetNumber = document
+    .getElementById("edit-company-street-number")
+    .value.trim();
   const streetName = document
     .getElementById("edit-company-street-name")
     .value.trim();
@@ -769,6 +935,14 @@ function validateAndUpdateAddress() {
 
   // Visual validation feedback
   let isValid = true;
+
+  // Check street number
+  if (!streetNumber) {
+    highlightInvalidField("edit-company-street-number");
+    isValid = false;
+  } else {
+    resetFieldValidation("edit-company-street-number");
+  }
 
   // Check street name
   if (!streetName) {
@@ -799,7 +973,7 @@ function validateAndUpdateAddress() {
     document.querySelector(".coordinates-display").style.animation =
       "shake 0.5s";
     document.querySelector(".address-map").style.borderColor = "#dc3545";
-    showMessage("Please select a location on the map", "error");
+    showMessage("Please set location coordinates", "error");
     isValid = false;
   } else {
     document.querySelector(".coordinates-display").style.animation = "";
@@ -877,6 +1051,9 @@ function initializeAddressMap(latLng) {
     mapOptions
   );
 
+  // Store the map reference globally so it can be accessed by other functions
+  window.addressMap = map;
+
   // Add marker with animation
   let marker = new google.maps.Marker({
     position: { lat: latLng.latitude, lng: latLng.longitude },
@@ -889,6 +1066,9 @@ function initializeAddressMap(latLng) {
       scaledSize: new google.maps.Size(40, 40),
     },
   });
+
+  // Store the marker reference globally
+  window.addressMarker = marker;
 
   // Add info window with instructions
   const infoWindow = new google.maps.InfoWindow({
@@ -914,6 +1094,14 @@ function initializeAddressMap(latLng) {
 
     updateLatLngDisplay(newLatLng);
 
+    // Update the input fields with new coordinates
+    document.getElementById("edit-company-lat").value = position
+      .lat()
+      .toFixed(6);
+    document.getElementById("edit-company-lon").value = position
+      .lng()
+      .toFixed(6);
+
     // Try to get address from coordinates (reverse geocoding)
     tryReverseGeocode(position.lat(), position.lng());
   });
@@ -934,6 +1122,14 @@ function initializeAddressMap(latLng) {
     setTimeout(() => marker.setAnimation(null), 750);
 
     updateLatLngDisplay(newLatLng);
+
+    // Update the input fields with new coordinates
+    document.getElementById("edit-company-lat").value = clickedLocation
+      .lat()
+      .toFixed(6);
+    document.getElementById("edit-company-lon").value = clickedLocation
+      .lng()
+      .toFixed(6);
 
     // Try to get address from coordinates
     tryReverseGeocode(clickedLocation.lat(), clickedLocation.lng());
@@ -1083,119 +1279,147 @@ function updateAddressFieldsFromPlace(place) {
 
 // Update the lat-lng display with better styling
 function updateLatLngDisplay(latLng) {
-  const display = document.getElementById("lat-lng-display");
-  if (display) {
-    display.innerHTML = `<i class="fas fa-check-circle"></i> Coordinates set: ${latLng.latitude.toFixed(
-      6
-    )}, ${latLng.longitude.toFixed(6)}`;
-    display.className = "has-coordinates";
-
-    // Add animation to show the change
-    display.style.animation = "pulse 0.5s";
-    setTimeout(() => {
-      display.style.animation = "";
-    }, 500);
+  if (
+    !latLng ||
+    typeof latLng.latitude === "undefined" ||
+    typeof latLng.longitude === "undefined"
+  ) {
+    return;
   }
 
-  // Store the selected coordinates in a hidden field for form submission
-  let hiddenField = document.getElementById("selected-coordinates");
-  if (!hiddenField) {
-    hiddenField = document.createElement("input");
-    hiddenField.type = "hidden";
-    hiddenField.id = "selected-coordinates";
-    document.querySelector(".edit-address-form").appendChild(hiddenField);
+  const displayElement = document.getElementById("lat-lng-display");
+  if (!displayElement) {
+    console.error("Coordinates display element not found");
+    return;
   }
-  hiddenField.value = JSON.stringify(latLng);
+
+  // Format to 6 decimal places
+  const latitude = latLng.latitude.toFixed(6);
+  const longitude = latLng.longitude.toFixed(6);
+
+  // Update the display
+  displayElement.innerHTML = `<i class="fas fa-check-circle"></i> Coordinates set: ${latitude}, ${longitude}`;
+  displayElement.className = "has-coordinates";
+
+  // Also update the input fields if they exist
+  const latInput = document.getElementById("edit-company-lat");
+  const lonInput = document.getElementById("edit-company-lon");
+
+  if (latInput && lonInput) {
+    latInput.value = latitude;
+    lonInput.value = longitude;
+  }
+
+  // Remove any error styling
+  const coordsDisplay = document.querySelector(".coordinates-display");
+  if (coordsDisplay) {
+    coordsDisplay.style.animation = "";
+    coordsDisplay.style.borderColor = "#ccc";
+  }
+
+  const addressMap = document.querySelector(".address-map");
+  if (addressMap) {
+    addressMap.style.borderColor = "#ccc";
+  }
 }
 
-// Get current location for address map
+// Get current location
 function getCurrentLocation() {
   if (navigator.geolocation) {
-    // Show loading indicator
-    const locationBtn = document.getElementById("get-location-btn");
-    locationBtn.innerHTML =
+    // Show a loading indicator while getting location
+    const getLocationBtn = document.getElementById("get-location-btn");
+    getLocationBtn.innerHTML =
       '<i class="fas fa-spinner fa-spin"></i> Getting location...';
-    locationBtn.disabled = true;
+    getLocationBtn.disabled = true;
 
     navigator.geolocation.getCurrentPosition(
       // Success callback
-      (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        const currentLocation = { lat: latitude, lng: longitude };
-        const latLng = { latitude, longitude };
+      function (position) {
+        // Get coordinates
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const latLng = { latitude: lat, longitude: lng };
 
-        // Get the map and update it
-        const mapElement = document.getElementById("address-map");
-        if (mapElement && typeof google !== "undefined" && google.maps) {
-          // The map instance is not directly accessible, so we need to recreate it
-          // This is a workaround since we can't access the existing map instance
-          const mapOptions = {
-            center: currentLocation,
-            zoom: 16,
-            mapTypeId: google.maps.MapTypeId.ROADMAP,
-            mapTypeControl: true,
-            streetViewControl: true,
-            fullscreenControl: true,
-            zoomControl: true,
-          };
+        // Update map and coordinates display
+        const map = window.addressMap; // Get the global map instance
+        if (map) {
+          map.setCenter({ lat, lng });
+          map.setZoom(16);
 
-          const map = new google.maps.Map(mapElement, mapOptions);
+          // Update marker
+          if (window.addressMarker) {
+            window.addressMarker.setPosition({ lat, lng });
+            window.addressMarker.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(() => window.addressMarker.setAnimation(null), 750);
+          } else {
+            // Create a new marker if it doesn't exist
+            window.addressMarker = new google.maps.Marker({
+              position: { lat, lng },
+              map: map,
+              draggable: true,
+              animation: google.maps.Animation.DROP,
+            });
 
-          // Create a new marker
-          const marker = new google.maps.Marker({
-            position: currentLocation,
-            map: map,
-            draggable: true,
-            animation: google.maps.Animation.DROP,
-            title: "Your location",
-          });
+            // Add drag event listener
+            google.maps.event.addListener(
+              window.addressMarker,
+              "dragend",
+              function () {
+                const position = window.addressMarker.getPosition();
+                const dragLatLng = {
+                  latitude: position.lat(),
+                  longitude: position.lng(),
+                };
+                updateLatLngDisplay(dragLatLng);
 
-          // Add listeners to the marker
-          google.maps.event.addListener(marker, "dragend", function () {
-            const position = marker.getPosition();
-            const newLatLng = {
-              latitude: position.lat(),
-              longitude: position.lng(),
-            };
-            updateLatLngDisplay(newLatLng);
-            tryReverseGeocode(position.lat(), position.lng());
-          });
+                // Also update the input fields
+                document.getElementById("edit-company-lat").value = position
+                  .lat()
+                  .toFixed(6);
+                document.getElementById("edit-company-lon").value = position
+                  .lng()
+                  .toFixed(6);
 
-          // Try to get address information from the coordinates
-          tryReverseGeocode(latitude, longitude);
+                // Try reverse geocoding
+                tryReverseGeocode(position.lat(), position.lng());
+              }
+            );
+          }
         }
 
-        // Update the display with the coordinates
+        // Update coordinates display and lat/lon inputs
         updateLatLngDisplay(latLng);
+        document.getElementById("edit-company-lat").value = lat.toFixed(6);
+        document.getElementById("edit-company-lon").value = lng.toFixed(6);
+
+        // Try to geocode the position to get address details
+        tryReverseGeocode(lat, lng);
 
         // Reset button
-        locationBtn.innerHTML =
+        getLocationBtn.innerHTML =
           '<i class="fas fa-map-marker-alt"></i> Use My Current Location';
-        locationBtn.disabled = false;
+        getLocationBtn.disabled = false;
 
-        showMessage("Location updated successfully", "success");
+        showMessage(
+          "Your current location has been set successfully",
+          "success"
+        );
       },
       // Error callback
-      (error) => {
-        console.error("Error getting current location:", error);
-
+      function (error) {
         // Reset button
-        locationBtn.innerHTML =
+        getLocationBtn.innerHTML =
           '<i class="fas fa-map-marker-alt"></i> Use My Current Location';
-        locationBtn.disabled = false;
+        getLocationBtn.disabled = false;
 
-        // Show appropriate error message
-        let errorMessage = "Could not get your location.";
-
+        let errorMessage = "Error getting your location.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage =
-              "Location permission denied. Please enable location services in your browser settings.";
+              "Location access denied. Please allow location access in your browser settings.";
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage =
-              "Location information is unavailable. Please try again later.";
+            errorMessage = "Location information is unavailable.";
             break;
           case error.TIMEOUT:
             errorMessage = "Location request timed out. Please try again.";
@@ -1227,11 +1451,11 @@ async function updateCompanyAddress() {
     showLoadingIndicator();
 
     // Get form values
-    const streetName = document
-      .getElementById("edit-company-street-name")
-      .value.trim();
     const streetNumber = document
       .getElementById("edit-company-street-number")
+      .value.trim();
+    const streetName = document
+      .getElementById("edit-company-street-name")
       .value.trim();
     const city = document.getElementById("edit-company-city").value.trim();
     const district = document
@@ -1243,9 +1467,12 @@ async function updateCompanyAddress() {
     const nextTo = document.getElementById("edit-company-next-to").value.trim();
 
     // Validate required fields
-    if (!streetName || !city || !country) {
+    if (!streetNumber || !streetName || !city || !country) {
       hideLoadingIndicator();
-      showMessage("Street name, city, and country are required", "error");
+      showMessage(
+        "Street number, street name, city, and country are required",
+        "error"
+      );
 
       // Reset the save button
       const saveButton = document.getElementById("save-address-btn");
@@ -1256,22 +1483,40 @@ async function updateCompanyAddress() {
       return;
     }
 
-    // Get lat/lng from display
+    // Get lat/lng from display or from input fields
     let latLon = null;
+    let latLonString = ""; // Store as string format
+
+    // Try to get coordinates from the display first
     const latLngText = document.getElementById("lat-lng-display").textContent;
     if (latLngText && latLngText.includes("Coordinates set")) {
       const matches = latLngText.match(/Coordinates set: ([-\d.]+), ([-\d.]+)/);
       if (matches && matches.length === 3) {
-        latLon = {
-          latitude: parseFloat(matches[1]),
-          longitude: parseFloat(matches[2]),
-        };
+        const lat = parseFloat(matches[1]);
+        const lon = parseFloat(matches[2]);
+        latLon = { latitude: lat, longitude: lon };
+        latLonString = `${lat},${lon}`; // Format as string
+      }
+    }
+    // If not found in display, try the input fields
+    else {
+      const latInput = document.getElementById("edit-company-lat").value.trim();
+      const lonInput = document.getElementById("edit-company-lon").value.trim();
+
+      if (latInput && lonInput) {
+        const lat = parseFloat(latInput);
+        const lon = parseFloat(lonInput);
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+          latLon = { latitude: lat, longitude: lon };
+          latLonString = `${lat},${lon}`; // Format as string
+        }
       }
     }
 
     if (!latLon) {
       hideLoadingIndicator();
-      showMessage("Please select a location on the map", "error");
+      showMessage("Please set valid location coordinates", "error");
 
       // Reset the save button
       const saveButton = document.getElementById("save-address-btn");
@@ -1287,21 +1532,33 @@ async function updateCompanyAddress() {
 
     // Prepare address data object
     const addressData = {
-      streetName,
       streetNumber,
+      streetName,
       city,
       district,
       country,
-      countryName, // Store the country name as well as the code
+      countryName,
       nextTo,
       latLon,
+      latLonString, // Add the string format
       updatedAt: getTimestamp(),
     };
+
+    // Format the complete address as a string for easy display
+    addressData.fullAddress = `${streetNumber} ${streetName}, ${city}, ${countryName}`;
+
+    console.log("Saving address data:", addressData);
+
+    // Get Firestore database reference
+    const db = firebase.firestore();
+    const addressesRef = db.collection("addresses");
+    const companiesRef = db.collection("companies");
 
     // Create or update address
     if (currentCompany.addressId) {
       // Update existing address
       await addressesRef.doc(currentCompany.addressId).update(addressData);
+      console.log("Updated existing address:", currentCompany.addressId);
 
       // Check if the id field exists, add it if it doesn't
       const addressDoc = await addressesRef.doc(currentCompany.addressId).get();
@@ -1309,26 +1566,36 @@ async function updateCompanyAddress() {
         await addressesRef.doc(currentCompany.addressId).update({
           id: currentCompany.addressId,
         });
+        console.log("Added ID field to existing address");
       }
     } else {
       // Create new address
+      console.log("Creating new address...");
       addressData.createdAt = getTimestamp();
-      const addressRef = await addressesRef.add(addressData);
 
-      // Add the id field to the new address document
-      await addressesRef.doc(addressRef.id).update({
-        id: addressRef.id,
-      });
+      try {
+        const addressRef = await addressesRef.add(addressData);
+        console.log("Created new address with ID:", addressRef.id);
 
-      // Update company with new addressId
-      await companiesRef.doc(currentCompany.id).update({
-        addressId: addressRef.id,
-        updatedAt: getTimestamp(),
-      });
+        // Add the id field to the new address document
+        await addressesRef.doc(addressRef.id).update({
+          id: addressRef.id,
+        });
 
-      // Update local company data
-      currentCompany.addressId = addressRef.id;
-      setCurrentCompany(currentCompany);
+        // Update company with new addressId
+        await companiesRef.doc(currentCompany.id).update({
+          addressId: addressRef.id,
+          updatedAt: getTimestamp(),
+        });
+        console.log("Updated company with new address ID");
+
+        // Update local company data
+        currentCompany.addressId = addressRef.id;
+        localStorage.setItem("currentCompany", JSON.stringify(currentCompany));
+      } catch (error) {
+        console.error("Error creating new address:", error);
+        throw error;
+      }
     }
 
     // Hide loading indicator
@@ -1339,13 +1606,25 @@ async function updateCompanyAddress() {
     loadCompanyProfile();
 
     // Log activity
-    await logActivity("update", "address", currentCompany.addressId);
+    try {
+      await logActivity("update", "address", currentCompany.addressId);
+    } catch (logError) {
+      console.error("Error logging activity:", logError);
+      // Continue since this is non-critical
+    }
 
     showMessage("Address updated successfully", "success");
   } catch (error) {
     console.error("Error updating address:", error);
     hideLoadingIndicator();
     showMessage(`Error updating address: ${error.message}`, "error");
+
+    // Reset the save button
+    const saveButton = document.getElementById("save-address-btn");
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.innerHTML = '<i class="fas fa-save"></i> Save Address';
+    }
   }
 }
 
