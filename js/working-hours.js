@@ -143,19 +143,21 @@ function generateWeekdayHoursHTML() {
             </div>
             <div class="weekday-times">
                 <div class="time-input-group">
-                    <div class="time-input-wrapper">
+                    <div class="time-input-wrapper time-with-format">
                         <i class="far fa-clock time-icon"></i>
                         <input type="time" class="time-input start-time" data-day="${day}" value="09:00">
+                        <span class="time-format">AM</span>
                     </div>
                     <span class="time-separator">to</span>
-                    <div class="time-input-wrapper">
+                    <div class="time-input-wrapper time-with-format">
                         <i class="far fa-clock time-icon"></i>
                         <input type="time" class="time-input end-time" data-day="${day}" value="17:00">
+                        <span class="time-format">PM</span>
                     </div>
                 </div>
             </div>
         </div>
-      `
+    `
     )
     .join("");
 }
@@ -180,32 +182,44 @@ function addWorkingHoursEventListeners() {
     });
   });
 
-  // Day enabled/disabled toggle
-  const dayToggles = document.querySelectorAll(".day-enabled");
-  dayToggles.forEach((toggle) => {
-    toggle.addEventListener("change", (e) => {
-      const statusText = e.target
-        .closest(".weekday-status")
-        .querySelector(".status-text");
-      const timeInputs = e.target
-        .closest(".weekday-row")
-        .querySelectorAll(".time-input");
+  // Add event listeners to toggle enabled/disabled status for days
+  document.querySelectorAll(".day-enabled").forEach((checkbox) => {
+    checkbox.addEventListener("change", function () {
+      const row = this.closest(".weekday-row");
+      const statusText = row.querySelector(".status-text");
+      const timeInputs = row.querySelectorAll(".time-input");
 
-      if (e.target.checked) {
+      if (this.checked) {
         statusText.textContent = "Open";
-        timeInputs.forEach((input) => (input.disabled = false));
+        statusText.classList.remove("closed-status");
+        timeInputs.forEach((input) => {
+          input.disabled = false;
+        });
       } else {
         statusText.textContent = "Closed";
-        timeInputs.forEach((input) => (input.disabled = true));
+        statusText.classList.add("closed-status");
+        timeInputs.forEach((input) => {
+          input.disabled = true;
+        });
       }
     });
   });
 
-  // Save working hours button
-  const saveBtn = document.getElementById("save-working-hours-btn");
-  if (saveBtn) {
-    saveBtn.addEventListener("click", saveWorkingHours);
-  }
+  // Add event listeners for time inputs to update AM/PM indicators
+  document.querySelectorAll(".time-input").forEach((input) => {
+    // Set initial AM/PM value
+    updateTimeFormat(input);
+
+    // Update AM/PM when time changes
+    input.addEventListener("change", function () {
+      updateTimeFormat(this);
+    });
+  });
+
+  // Save button event listener
+  document
+    .getElementById("save-working-hours-btn")
+    .addEventListener("click", saveWorkingHours);
 
   // Add time off button
   const addTimeOffBtn = document.getElementById("add-time-off-btn");
@@ -229,6 +243,27 @@ function addWorkingHoursEventListeners() {
       // Just switch to the working hours tab
       tabButtons[0].click();
     });
+  }
+}
+
+// Function to update the time format (AM/PM) based on the input value
+function updateTimeFormat(timeInput) {
+  const timeFormatElement =
+    timeInput.parentElement.querySelector(".time-format");
+  if (!timeFormatElement) return;
+
+  // Get the time value
+  const timeValue = timeInput.value;
+  if (!timeValue) return;
+
+  // Parse hours
+  const hours = parseInt(timeValue.split(":")[0]);
+
+  // Set AM/PM based on hours
+  if (hours >= 12) {
+    timeFormatElement.textContent = "PM";
+  } else {
+    timeFormatElement.textContent = "AM";
   }
 }
 
@@ -349,12 +384,17 @@ async function loadExistingWorkingHours() {
 
       dayToggle.checked = false;
       statusText.textContent = "Closed";
+      statusText.classList.add("closed-status");
       startTime.disabled = true;
       endTime.disabled = true;
 
       // Reset to default times
       startTime.value = "09:00";
       endTime.value = "17:00";
+
+      // Update AM/PM indicators
+      updateTimeFormat(startTime);
+      updateTimeFormat(endTime);
     });
 
     // Now get all working hours records
@@ -388,15 +428,18 @@ async function loadExistingWorkingHours() {
           // Set the form values
           dayToggle.checked = true;
           statusText.textContent = "Open";
+          statusText.classList.remove("closed-status");
           startTime.disabled = false;
           endTime.disabled = false;
 
           if (record.startTime) {
             startTime.value = record.startTime;
+            updateTimeFormat(startTime);
           }
 
           if (record.endTime) {
             endTime.value = record.endTime;
+            updateTimeFormat(endTime);
           }
 
           console.log(
@@ -449,9 +492,9 @@ async function loadTimeOffData() {
           <tbody id="time-off-table-body">
             <tr>
               <td colspan="6" class="loading-row">
-                <div class="loading-state">
-                  <i class="fas fa-spinner fa-spin"></i>
-                  <p>Loading time off records...</p>
+      <div class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading time off records...</p>
                 </div>
               </td>
             </tr>
@@ -470,11 +513,11 @@ async function loadTimeOffData() {
       timeOffTableBody.innerHTML = `
         <tr>
           <td colspan="6" class="error-row">
-            <div class="error-state">
-              <i class="fas fa-exclamation-triangle"></i>
-              <p>Company data is missing or invalid</p>
-              <button onclick="location.reload()">Refresh Page</button>
-            </div>
+        <div class="error-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>Company data is missing or invalid</p>
+          <button onclick="location.reload()">Refresh Page</button>
+        </div>
           </td>
         </tr>
       `;
@@ -518,14 +561,14 @@ async function loadTimeOffData() {
         timeOffTableBody.innerHTML = `
           <tr>
             <td colspan="6" class="empty-row">
-              <div class="empty-state">
-                <i class="fas fa-calendar-times"></i>
-                <p>No time off records found</p>
-                <small>Company ID: ${currentCompany.id}</small>
-              </div>
+        <div class="empty-state">
+          <i class="fas fa-calendar-times"></i>
+          <p>No time off records found</p>
+          <small>Company ID: ${currentCompany.id}</small>
+        </div>
             </td>
           </tr>
-        `;
+      `;
         return;
       }
 
@@ -643,12 +686,12 @@ async function loadTimeOffData() {
           timeOffTableBody.innerHTML = `
             <tr>
               <td colspan="6" class="error-row">
-                <div class="error-state">
-                  <i class="fas fa-exclamation-triangle"></i>
+            <div class="error-state">
+              <i class="fas fa-exclamation-triangle"></i>
                   <p>Failed to load time off records</p>
                   <p>Error: ${fallbackError.message}</p>
-                  <button onclick="loadTimeOffData()">Try Again</button>
-                </div>
+              <button onclick="loadTimeOffData()">Try Again</button>
+            </div>
               </td>
             </tr>
           `;
@@ -662,11 +705,11 @@ async function loadTimeOffData() {
                 <i class="fas fa-exclamation-triangle"></i>
                 <p>Failed to load time off records</p>
                 <p>Error: ${indexError.message}</p>
-                <button onclick="loadTimeOffData()">Try Again</button>
-              </div>
+          <button onclick="loadTimeOffData()">Try Again</button>
+        </div>
             </td>
           </tr>
-        `;
+      `;
       }
     }
   } catch (error) {
@@ -676,12 +719,12 @@ async function loadTimeOffData() {
       timeOffTableBody.innerHTML = `
         <tr>
           <td colspan="6" class="error-row">
-            <div class="error-state">
-              <i class="fas fa-exclamation-triangle"></i>
+          <div class="error-state">
+            <i class="fas fa-exclamation-triangle"></i>
               <p>An unexpected error occurred while loading time off records</p>
               <p>Error: ${error.message}</p>
-              <button onclick="loadTimeOffData()">Try Again</button>
-            </div>
+            <button onclick="loadTimeOffData()">Try Again</button>
+          </div>
           </td>
         </tr>
       `;
@@ -894,14 +937,6 @@ function addTimeOffActionListeners() {
   });
 }
 
-// Load required Firebase functions
-let getTimestamp;
-
-document.addEventListener("DOMContentLoaded", function () {
-  // Get timestamp function from Firebase
-  getTimestamp = firebase.firestore.Timestamp.now;
-});
-
 // Show add time off modal
 function showAddTimeOffModal() {
   const today = new Date().toISOString().split("T")[0];
@@ -943,12 +978,20 @@ function showAddTimeOffModal() {
       
       <div class="form-group">
         <label for="time-off-start-time">Start Time <span class="required">*</span></label>
-        <input type="time" id="time-off-start-time" value="${currentTime}">
+        <div class="time-input-wrapper time-with-format">
+          <i class="far fa-clock time-icon"></i>
+          <input type="time" id="time-off-start-time" value="${currentTime}">
+          <span class="time-format">AM</span>
+        </div>
       </div>
       
       <div class="form-group">
         <label for="time-off-end-time">End Time <span class="required">*</span></label>
-        <input type="time" id="time-off-end-time" value="${currentTime}">
+        <div class="time-input-wrapper time-with-format">
+          <i class="far fa-clock time-icon"></i>
+          <input type="time" id="time-off-end-time" value="${currentTime}">
+          <span class="time-format">AM</span>
+        </div>
       </div>
       
       <div class="form-actions">
@@ -986,6 +1029,10 @@ function showAddTimeOffModal() {
     .addEventListener("click", function () {
       hideModal();
     });
+
+  // Update AM/PM indicators
+  updateTimeFormat(document.getElementById("time-off-start-time"));
+  updateTimeFormat(document.getElementById("time-off-end-time"));
 }
 
 // Add time off record

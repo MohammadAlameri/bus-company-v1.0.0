@@ -1110,4 +1110,41 @@ input:checked + .toggle-slider:before {
     margin-right: 5px;
 }
 
-/* End of Working Hours Modern Styling */ 
+/* End of Working Hours Modern Styling */
+
+/* Time Format Styling */
+.time-with-format {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.time-format {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--primary-color);
+    pointer-events: none;
+    user-select: none;
+}
+
+.time-with-format input[type="time"] {
+    padding-right: 35px;
+}
+
+.closed-status {
+    color: var(--danger-color);
+}
+
+/* Fix for time input to display AM/PM format */
+input[type="time"]::-webkit-calendar-picker-indicator {
+    margin-right: 30px;
+}
+
+/* Hide the clear button on time inputs in Edge */
+input[type="time"]::-ms-clear {
+    display: none;
+} 

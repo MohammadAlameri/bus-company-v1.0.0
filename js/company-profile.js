@@ -502,100 +502,123 @@ function showEditAddressModal() {
 // Display the address form with pre-filled data
 function showAddressForm(addressData) {
   const modalContent = `
-        <div class="edit-address-form">
-            <div class="form-section-heading">
-                <h4>Location Details</h4>
-                <p>Update your company's physical location information. Fields marked with * are required.</p>
-            </div>
+    <div class="edit-address-form">
+      <div class="form-section-heading">
+        <h4>Location Details</h4>
+      </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit-company-street-name">Street Name *</label>
-                    <input type="text" id="edit-company-street-name" placeholder="Main Street" value="${
-                      addressData.streetName || ""
-                    }" required>
-                </div>
-                <div class="form-group">
-                    <label for="edit-company-street-number">Building/House Number</label>
-                    <input type="text" id="edit-company-street-number" placeholder="123" value="${
-                      addressData.streetNumber || ""
-                    }">
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit-company-city">City *</label>
-                    <input type="text" id="edit-company-city" placeholder="City Name" value="${
-                      addressData.city || ""
-                    }" required>
-                </div>
-                <div class="form-group">
-                    <label for="edit-company-district">District</label>
-                    <input type="text" id="edit-company-district" placeholder="District Name" value="${
-                      addressData.district || ""
-                    }">
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit-company-country">Country *</label>
-                    <input type="text" id="edit-company-country" placeholder="Country Name" value="${
-                      addressData.country || ""
-                    }" required>
-                </div>
-                <div class="form-group">
-                    <label for="edit-company-next-to">Landmark</label>
-                    <input type="text" id="edit-company-next-to" placeholder="Near Central Bank" value="${
-                      addressData.nextTo || ""
-                    }">
-                </div>
-            </div>
-            
-            <div class="form-section-heading">
-                <h4>Map Location *</h4>
-                <p>Pin your exact location on the map or use your current location</p>
-            </div>
-            
-            <div class="map-section">
-                <div id="address-map" class="address-map"></div>
-                
-                <div class="map-controls">
-                    <button type="button" id="get-location-btn" class="location-btn">
-                        <i class="fas fa-map-marker-alt"></i> Use My Current Location
-                    </button>
-                    
-                    <div class="coordinates-display">
-                        <span id="lat-lng-display" class="${
-                          addressData.latLon
-                            ? "has-coordinates"
-                            : "no-coordinates"
-                        }">
-                            ${
-                              addressData.latLon
-                                ? `<i class="fas fa-check-circle"></i> Coordinates set: ${addressData.latLon.latitude.toFixed(
-                                    6
-                                  )}, ${addressData.latLon.longitude.toFixed(
-                                    6
-                                  )}`
-                                : '<i class="fas fa-exclamation-circle"></i> No location selected'
-                            }
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="form-footer">
-                <button type="button" class="cancel-btn" onclick="hideModal()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="save-btn" id="save-address-btn" onclick="validateAndUpdateAddress()">
-                    <i class="fas fa-save"></i> Save Address
-                </button>
-            </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-company-street-name">Street Name <span class="required">*</span></label>
+          <input type="text" id="edit-company-street-name" placeholder="Main Street" value="${
+            addressData.streetName || ""
+          }" required>
         </div>
-    `;
+        <div class="form-group">
+          <label for="edit-company-street-number">Building/House Number</label>
+          <input type="text" id="edit-company-street-number" placeholder="123" value="${
+            addressData.streetNumber || ""
+          }">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-company-city">City <span class="required">*</span></label>
+          <input type="text" id="edit-company-city" placeholder="City Name" value="${
+            addressData.city || ""
+          }" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-company-district">District</label>
+          <input type="text" id="edit-company-district" placeholder="District Name" value="${
+            addressData.district || ""
+          }">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-company-country">Country <span class="required">*</span></label>
+          <select id="edit-company-country" required>
+            <option value="" disabled ${
+              !addressData.country ? "selected" : ""
+            }>Select country</option>
+            <option value="JO" ${
+              addressData.country === "JO" ? "selected" : ""
+            }>Jordan</option>
+            <option value="PS" ${
+              addressData.country === "PS" ? "selected" : ""
+            }>Palestine</option>
+            <option value="SA" ${
+              addressData.country === "SA" ? "selected" : ""
+            }>Saudi Arabia</option>
+            <option value="AE" ${
+              addressData.country === "AE" ? "selected" : ""
+            }>United Arab Emirates</option>
+            <option value="QA" ${
+              addressData.country === "QA" ? "selected" : ""
+            }>Qatar</option>
+            <option value="KW" ${
+              addressData.country === "KW" ? "selected" : ""
+            }>Kuwait</option>
+            <option value="BH" ${
+              addressData.country === "BH" ? "selected" : ""
+            }>Bahrain</option>
+            <option value="OM" ${
+              addressData.country === "OM" ? "selected" : ""
+            }>Oman</option>
+            <option value="YE" ${
+              addressData.country === "YE" ? "selected" : ""
+            }>Yemen</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-company-next-to">Landmark</label>
+          <input type="text" id="edit-company-next-to" placeholder="Near Central Bank" value="${
+            addressData.nextTo || ""
+          }">
+        </div>
+      </div>
+      
+      <div class="form-section-heading">
+        <h4>Map Location <span class="required">*</span></h4>
+      </div>
+      
+      <div class="map-section">
+        <div id="address-map" class="address-map"></div>
+        
+        <div class="map-controls">
+          <button type="button" id="get-location-btn" class="location-btn">
+            <i class="fas fa-map-marker-alt"></i> Use My Current Location
+          </button>
+          
+          <div class="coordinates-display">
+            <span id="lat-lng-display" class="${
+              addressData.latLon ? "has-coordinates" : "no-coordinates"
+            }">
+              ${
+                addressData.latLon
+                  ? `<i class="fas fa-check-circle"></i> Coordinates set: ${addressData.latLon.latitude.toFixed(
+                      6
+                    )}, ${addressData.latLon.longitude.toFixed(6)}`
+                  : '<i class="fas fa-exclamation-circle"></i> No location selected'
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-footer">
+        <button type="button" class="danger-btn" onclick="hideModal()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button type="button" class="primary-btn" id="save-address-btn">
+          <i class="fas fa-save"></i> Save Address
+        </button>
+      </div>
+    </div>
+  `;
 
   // Update the modal content
   document.querySelector(".modal-content").innerHTML = modalContent;
@@ -605,177 +628,132 @@ function showAddressForm(addressData) {
   const styleElement = document.createElement("style");
   styleElement.textContent = `
     .edit-address-form {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 0 15px;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 15px;
     }
     
     .form-section-heading {
-        margin: 20px 0 15px;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #e0e0e0;
+      margin: 20px 0 15px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #e0e0e0;
     }
     
     .form-section-heading h4 {
-        margin-bottom: 5px;
-        color: #333;
-    }
-    
-    .form-section-heading p {
-        margin: 0;
-        font-size: 13px;
-        color: #6c757d;
+      margin-bottom: 5px;
+      color: #333;
     }
     
     .form-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        margin-bottom: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      margin: 0 -10px;
     }
     
     .form-group {
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: 500;
-    }
-    
-    .form-group input, .form-group select, .form-group textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        margin-bottom: 5px;
-        font-size: 14px;
-    }
-    
-    .map-instructions {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 10px;
+      flex: 1;
+      min-width: 250px;
+      padding: 0 10px;
+      margin-bottom: 20px;
     }
     
     .address-map {
-        height: 300px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 15px;
     }
     
     .map-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 20px;
     }
     
     .location-btn {
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-        padding: 8px 15px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.2s;
+      padding: 8px 16px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
     }
     
     .location-btn:hover {
-        background-color: #e9ecef;
-        border-color: #ccc;
+      background-color: var(--primary-dark);
     }
     
     .coordinates-display {
-        padding: 8px 12px;
-        border-radius: 4px;
-        background-color: #f8f9fa;
-        font-size: 14px;
+      flex: 1;
+      padding: 8px 12px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      font-size: 14px;
+      min-width: 250px;
     }
     
     .has-coordinates {
-        color: #28a745;
+      color: var(--success-color);
+      font-weight: 500;
     }
     
     .no-coordinates {
-        color: #dc3545;
+      color: var(--danger-color);
+      font-weight: 500;
     }
-    
-    .form-footer {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 25px;
-        padding-top: 15px;
-        border-top: 1px solid #e0e0e0;
-    }
-    
-    .cancel-btn {
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-        padding: 8px 15px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .cancel-btn:hover {
-        background-color: #e9ecef;
-    }
-    
-    .save-btn {
-        background-color: #4a6cf7;
-        color: white;
-        border: none;
-        padding: 8px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    
-    .save-btn:hover {
-        background-color: #3a5bd7;
-    }
-    
-    .map-placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        background-color: #f8f9fa;
-        color: #6c757d;
-        font-style: italic;
+
+    .required {
+      color: var(--danger-color);
+      margin-left: 3px;
     }
     
     @media (max-width: 768px) {
-        .form-row {
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .form-group {
-            width: 100%;
-        }
+      .form-group {
+        min-width: 100%;
+      }
+      
+      .map-controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .coordinates-display {
+        width: 100%;
+      }
     }
   `;
   document.head.appendChild(styleElement);
 
-  // Initialize map if Google Maps API is available
-  if (typeof google !== "undefined" && google.maps) {
-    initializeAddressMap(addressData.latLon);
+  // Initialize the map
+  if (
+    typeof google !== "undefined" &&
+    typeof google.maps !== "undefined" &&
+    google.maps.Map
+  ) {
+    setTimeout(() => {
+      initializeAddressMap(addressData.latLon);
+    }, 500);
   } else {
+    console.error("Google Maps API is not loaded.");
     document.getElementById("address-map").innerHTML =
-      '<div class="map-placeholder"><i class="fas fa-map fa-2x"></i><p>Map cannot be loaded</p></div>';
+      "<div class='map-error'>Google Maps API failed to load. Please refresh the page.</div>";
   }
 
-  // Add event listener for getting current location
+  // Add click event for the "Use My Current Location" button
   document
     .getElementById("get-location-btn")
     .addEventListener("click", getCurrentLocation);
+
+  // Add click event for the save button
+  document
+    .getElementById("save-address-btn")
+    .addEventListener("click", validateAndUpdateAddress);
 }
 
 // Function to validate form fields before saving
@@ -784,8 +762,10 @@ function validateAndUpdateAddress() {
     .getElementById("edit-company-street-name")
     .value.trim();
   const city = document.getElementById("edit-company-city").value.trim();
-  const country = document.getElementById("edit-company-country").value.trim();
-  const latLngText = document.getElementById("lat-lng-display").textContent;
+  const countrySelect = document.getElementById("edit-company-country");
+  const country = countrySelect.value;
+  const latLngDisplay = document.getElementById("lat-lng-display");
+  const hasCoordinates = latLngDisplay.classList.contains("has-coordinates");
 
   // Visual validation feedback
   let isValid = true;
@@ -815,10 +795,11 @@ function validateAndUpdateAddress() {
   }
 
   // Check map coordinates
-  if (!latLngText.includes("Coordinates set")) {
+  if (!hasCoordinates) {
     document.querySelector(".coordinates-display").style.animation =
       "shake 0.5s";
     document.querySelector(".address-map").style.borderColor = "#dc3545";
+    showMessage("Please select a location on the map", "error");
     isValid = false;
   } else {
     document.querySelector(".coordinates-display").style.animation = "";
@@ -847,10 +828,6 @@ function validateAndUpdateAddress() {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
           20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
         }
       `;
       document.head.appendChild(styleSheet);
@@ -892,6 +869,7 @@ function initializeAddressMap(latLng) {
     streetViewControl: true,
     fullscreenControl: true,
     zoomControl: true,
+    gestureHandling: "greedy", // Improves mobile map interaction
   };
 
   const map = new google.maps.Map(
@@ -906,11 +884,16 @@ function initializeAddressMap(latLng) {
     draggable: true,
     animation: google.maps.Animation.DROP,
     title: "Drag me to your location",
+    icon: {
+      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+      scaledSize: new google.maps.Size(40, 40),
+    },
   });
 
   // Add info window with instructions
   const infoWindow = new google.maps.InfoWindow({
-    content: "Drag this marker to set your exact location",
+    content:
+      "<div class='map-info-window'>Drag this marker to set your exact location</div>",
   });
 
   // Show info window briefly
@@ -924,143 +907,178 @@ function initializeAddressMap(latLng) {
       latitude: position.lat(),
       longitude: position.lng(),
     };
+
+    // Animate marker to bounce briefly to draw attention
+    marker.setAnimation(google.maps.Animation.BOUNCE);
+    setTimeout(() => marker.setAnimation(null), 750);
+
     updateLatLngDisplay(newLatLng);
 
     // Try to get address from coordinates (reverse geocoding)
     tryReverseGeocode(position.lat(), position.lng());
   });
 
-  // Add click listener to map
+  // Add click listener to map to set the marker location
   google.maps.event.addListener(map, "click", function (event) {
-    // Animate marker to new position
-    marker.setAnimation(google.maps.Animation.BOUNCE);
-    setTimeout(() => {
-      marker.setAnimation(null);
-    }, 500);
+    const clickedLocation = event.latLng;
+    marker.setPosition(clickedLocation);
+    map.panTo(clickedLocation);
 
-    marker.setPosition(event.latLng);
     const newLatLng = {
-      latitude: event.latLng.lat(),
-      longitude: event.latLng.lng(),
+      latitude: clickedLocation.lat(),
+      longitude: clickedLocation.lng(),
     };
+
+    // Animate marker
+    marker.setAnimation(google.maps.Animation.BOUNCE);
+    setTimeout(() => marker.setAnimation(null), 750);
+
     updateLatLngDisplay(newLatLng);
 
-    // Try to get address from coordinates (reverse geocoding)
-    tryReverseGeocode(event.latLng.lat(), event.latLng.lng());
+    // Try to get address from coordinates
+    tryReverseGeocode(clickedLocation.lat(), clickedLocation.lng());
   });
 
-  // Add search box to the map
-  const input = document.createElement("input");
-  input.id = "map-search-box";
-  input.className = "map-search-box";
-  input.type = "text";
-  input.placeholder = "Search for a location";
-
-  const searchBox = new google.maps.places.SearchBox(input);
-  map.controls[google.maps.ControlPosition.TOP_CENTER].push(input);
-
-  // Add styling for the search box
-  const searchBoxStyle = document.createElement("style");
-  searchBoxStyle.textContent = `
-    .map-search-box {
-      margin: 10px;
-      padding: 8px 12px;
-      width: 60%;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      font-size: 15px;
+  // Add CSS for info window
+  const mapStyle = document.createElement("style");
+  mapStyle.textContent = `
+    .map-info-window {
+      padding: 5px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+    }
+    .gm-style-iw {
+      padding: 10px;
     }
   `;
-  document.head.appendChild(searchBoxStyle);
+  document.head.appendChild(mapStyle);
 
-  // Listen for search box events
-  searchBox.addListener("places_changed", function () {
-    const places = searchBox.getPlaces();
-    if (places.length === 0) return;
-
-    const place = places[0];
-    if (!place.geometry || !place.geometry.location) return;
-
-    // Pan to the selected place
-    map.setCenter(place.geometry.location);
-    map.setZoom(17);
-
-    // Update marker
-    marker.setPosition(place.geometry.location);
-    marker.setAnimation(google.maps.Animation.DROP);
-
-    // Update coordinates
-    const newLatLng = {
-      latitude: place.geometry.location.lat(),
-      longitude: place.geometry.location.lng(),
-    };
-    updateLatLngDisplay(newLatLng);
-
-    // Update form fields if applicable
-    updateAddressFieldsFromPlace(place);
+  // Make map responsive - redraw when window is resized
+  window.addEventListener("resize", function () {
+    google.maps.event.trigger(map, "resize");
+    map.setCenter({ lat: latLng.latitude, lng: latLng.longitude });
   });
+
+  return map;
 }
 
-// Function to try reverse geocoding
-function tryReverseGeocode(lat, lng) {
-  if (!google.maps.Geocoder) return;
+// Try to get address from coordinates (reverse geocoding)
+async function tryReverseGeocode(lat, lng) {
+  try {
+    const geocoder = new google.maps.Geocoder();
+    const latLng = new google.maps.LatLng(lat, lng);
 
-  const geocoder = new google.maps.Geocoder();
-  const latlng = { lat, lng };
+    geocoder.geocode({ location: latLng }, function (results, status) {
+      if (status === google.maps.GeocoderStatus.OK && results[0]) {
+        updateAddressFieldsFromPlace(results[0]);
 
-  geocoder.geocode({ location: latlng }, function (results, status) {
-    if (status === "OK" && results[0]) {
-      updateAddressFieldsFromPlace(results[0]);
-    }
-  });
+        // Provide visual feedback that address fields have been updated
+        const addressFields = document.querySelectorAll(
+          ".edit-address-form input, .edit-address-form select"
+        );
+        addressFields.forEach((field) => {
+          if (field.value && field.value.trim() !== "") {
+            field.classList.add("field-updated");
+            setTimeout(() => {
+              field.classList.remove("field-updated");
+            }, 1500);
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error("Error during reverse geocoding:", error);
+  }
 }
 
-// Function to update address fields from geocoded place
+// Update address fields from a Google Maps place result
 function updateAddressFieldsFromPlace(place) {
   if (!place || !place.address_components) return;
 
-  let streetNumber = "";
-  let streetName = "";
-  let city = "";
-  let district = "";
-  let country = "";
+  // Create a map for the components
+  const componentMap = {};
 
-  // Extract components
   for (const component of place.address_components) {
     const types = component.types;
 
-    if (types.includes("street_number")) {
-      streetNumber = component.long_name;
-    } else if (types.includes("route")) {
-      streetName = component.long_name;
+    // Map component types to field IDs
+    if (types.includes("route")) {
+      componentMap.streetName = component.long_name;
+    } else if (types.includes("street_number")) {
+      componentMap.streetNumber = component.long_name;
     } else if (types.includes("locality") || types.includes("postal_town")) {
-      city = component.long_name;
-    } else if (
-      types.includes("administrative_area_level_2") ||
-      types.includes("sublocality")
-    ) {
-      district = component.long_name;
+      componentMap.city = component.long_name;
+    } else if (types.includes("administrative_area_level_1")) {
+      componentMap.district = component.long_name;
     } else if (types.includes("country")) {
-      country = component.long_name;
+      componentMap.country = component.short_name;
+      componentMap.countryName = component.long_name;
     }
   }
 
-  // Update fields if they're empty or check with user before overwriting
-  const streetNameField = document.getElementById("edit-company-street-name");
-  const streetNumberField = document.getElementById(
-    "edit-company-street-number"
-  );
-  const cityField = document.getElementById("edit-company-city");
-  const districtField = document.getElementById("edit-company-district");
-  const countryField = document.getElementById("edit-company-country");
+  // Fill in form fields if we have the data
+  if (componentMap.streetName) {
+    document.getElementById("edit-company-street-name").value =
+      componentMap.streetName;
+  }
 
-  if (streetName && !streetNameField.value) streetNameField.value = streetName;
-  if (streetNumber && !streetNumberField.value)
-    streetNumberField.value = streetNumber;
-  if (city && !cityField.value) cityField.value = city;
-  if (district && !districtField.value) districtField.value = district;
-  if (country && !countryField.value) countryField.value = country;
+  if (componentMap.streetNumber) {
+    document.getElementById("edit-company-street-number").value =
+      componentMap.streetNumber;
+  }
+
+  if (componentMap.city) {
+    document.getElementById("edit-company-city").value = componentMap.city;
+  }
+
+  if (componentMap.district) {
+    document.getElementById("edit-company-district").value =
+      componentMap.district;
+  }
+
+  // Handle country dropdown
+  if (componentMap.country) {
+    const countrySelect = document.getElementById("edit-company-country");
+    const countryOptions = Array.from(countrySelect.options);
+
+    // First try to match by country code
+    const matchingOption = countryOptions.find(
+      (option) => option.value === componentMap.country
+    );
+
+    if (matchingOption) {
+      countrySelect.value = matchingOption.value;
+    } else {
+      // If no match by code, try matching by name (for non-standard country codes)
+      const nameMatch = countryOptions.find((option) =>
+        option.text
+          .toLowerCase()
+          .includes(componentMap.countryName.toLowerCase())
+      );
+
+      if (nameMatch) {
+        countrySelect.value = nameMatch.value;
+      }
+    }
+  }
+
+  // Add a style for the field updated effect if it doesn't exist
+  if (!document.getElementById("field-updated-style")) {
+    const style = document.createElement("style");
+    style.id = "field-updated-style";
+    style.textContent = `
+      @keyframes fieldUpdated {
+        0% { background-color: #ffffff; }
+        50% { background-color: #e3f2fd; }
+        100% { background-color: #ffffff; }
+      }
+      .field-updated {
+        animation: fieldUpdated 1.5s ease;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }
 
 // Update the lat-lng display with better styling
@@ -1219,22 +1237,29 @@ async function updateCompanyAddress() {
     const district = document
       .getElementById("edit-company-district")
       .value.trim();
-    const country = document
-      .getElementById("edit-company-country")
-      .value.trim();
+    const countrySelect = document.getElementById("edit-company-country");
+    const country = countrySelect.value;
+    const countryName = countrySelect.options[countrySelect.selectedIndex].text;
     const nextTo = document.getElementById("edit-company-next-to").value.trim();
 
     // Validate required fields
     if (!streetName || !city || !country) {
       hideLoadingIndicator();
       showMessage("Street name, city, and country are required", "error");
+
+      // Reset the save button
+      const saveButton = document.getElementById("save-address-btn");
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Save Address';
+      }
       return;
     }
 
     // Get lat/lng from display
     let latLon = null;
     const latLngText = document.getElementById("lat-lng-display").textContent;
-    if (latLngText && latLngText !== "No coordinates selected") {
+    if (latLngText && latLngText.includes("Coordinates set")) {
       const matches = latLngText.match(/Coordinates set: ([-\d.]+), ([-\d.]+)/);
       if (matches && matches.length === 3) {
         latLon = {
@@ -1247,6 +1272,13 @@ async function updateCompanyAddress() {
     if (!latLon) {
       hideLoadingIndicator();
       showMessage("Please select a location on the map", "error");
+
+      // Reset the save button
+      const saveButton = document.getElementById("save-address-btn");
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Save Address';
+      }
       return;
     }
 
@@ -1260,6 +1292,7 @@ async function updateCompanyAddress() {
       city,
       district,
       country,
+      countryName, // Store the country name as well as the code
       nextTo,
       latLon,
       updatedAt: getTimestamp(),
