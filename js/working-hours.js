@@ -1,5 +1,23 @@
+// Global variables
+let db;
+
 // Initialize working hours section
 function loadWorkingHours() {
+  // Initialize Firebase Firestore reference once
+  if (!db) {
+    try {
+      db = firebase.firestore();
+      console.log("Firestore database reference initialized");
+    } catch (error) {
+      console.error("Failed to initialize Firestore:", error);
+      showMessage(
+        "Error connecting to database. Please refresh the page.",
+        "error"
+      );
+      return;
+    }
+  }
+
   if (!currentCompany) {
     console.error("Cannot load working hours: currentCompany is not defined");
     return;
@@ -458,25 +476,89 @@ async function loadExistingWorkingHours() {
 
 // Load time off data
 async function loadTimeOffData() {
+  console.log("Starting loadTimeOffData function...");
   try {
-    // STEP 1: Find the DOM element
-    const timeOffList = document.getElementById("time-off-list");
+    // Use global db variable and initialize if needed
+    if (!db) {
+      try {
+        db = firebase.firestore();
+        console.log(
+          "Initializing Firestore database reference in loadTimeOffData"
+        );
+      } catch (dbError) {
+        console.error("Failed to initialize Firestore:", dbError);
+        showMessage(
+          "Error connecting to database. Please refresh the page.",
+          "error"
+        );
+        return;
+      }
+    }
 
+    // Find the DOM element
+    const timeOffList = document.getElementById("time-off-list");
     if (!timeOffList) {
       console.error("TIME OFF LIST ELEMENT NOT FOUND IN DOM");
-      alert("Debug: Time off list element not found");
       return;
     }
 
-    // STEP 2: Show loading state with debugging info
-    console.warn("STARTING TIME OFF DATA LOAD - " + new Date().toISOString());
-    console.log("Current company data:", JSON.stringify(currentCompany));
+    console.log("Loading time off data for company:", currentCompany?.id);
+
+    // Show loading state
+    timeOffList.innerHTML = `
+      <div class="time-off-header">
+        <h3>Time Off Records</h3>
+        <button type="button" id="add-time-off-btn-main" class="add-btn primary-btn">
+          <i class="fas fa-plus"></i> Add Time Off
+        </button>
+      </div>
+      <div class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>Loading time off records...</span>
+      </div>
+    `;
+
+    // Set up the Add Time Off button
+    const addTimeOffBtnMain = document.getElementById("add-time-off-btn-main");
+    if (addTimeOffBtnMain) {
+      addTimeOffBtnMain.addEventListener("click", function () {
+        console.log("Main Add Time Off button clicked");
+        showAddTimeOffModal();
+      });
+    }
+
+    // Check if company data is available
+    if (!currentCompany || !currentCompany.id) {
+      console.error("Cannot load time off data: company data is missing");
+      timeOffList.innerHTML = `
+        <div class="time-off-header">
+          <h3>Time Off Records</h3>
+          <button id="add-time-off-btn-main" class="add-btn primary-btn">
+            <i class="fas fa-plus"></i> Add Time Off
+          </button>
+        </div>
+        <div class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>Company data is not available. Please refresh the page.</span>
+        </div>
+      `;
+      return;
+    }
+
+    // Fetch time off records from Firestore
+    const timeOffRecords = await db
+      .collection("timeOff")
+      .where("companyId", "==", currentCompany.id)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    console.log(`Found ${timeOffRecords.size} time off records`);
 
     // Update the time off display with a table structure
     timeOffList.innerHTML = `
       <div class="time-off-header">
         <h3>Time Off Records</h3>
-        <button onclick="showAddTimeOffModal()" class="add-btn primary-btn">
+        <button type="button" id="add-time-off-btn-main" class="add-btn primary-btn">
           <i class="fas fa-plus"></i> Add Time Off
         </button>
       </div>
@@ -489,246 +571,72 @@ async function loadTimeOffData() {
               <th><i class="fas fa-clock mr-2"></i>Time</th>
               <th><i class="fas fa-repeat mr-2"></i>Frequency</th>
               <th><i class="fas fa-info-circle mr-2"></i>Status</th>
-              <th><i class="fas fa-cogs mr-2"></i>Actions</th>
+              <th><i class="fas fa-cog mr-2"></i>Actions</th>
             </tr>
           </thead>
           <tbody id="time-off-table-body">
-            <tr>
-              <td colspan="6" class="loading-row">
-      <div class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading time off records...</p>
-                </div>
-              </td>
-            </tr>
+            ${
+              timeOffRecords.empty
+                ? '<tr><td colspan="6" class="text-center">No time off records found</td></tr>'
+                : ""
+            }
           </tbody>
         </table>
       </div>
     `;
 
-    // Add table styles
-    addTimeOffTableStyles();
+    // Setup the Add Time Off button again
+    const addTimeOffBtn = document.getElementById("add-time-off-btn-main");
+    if (addTimeOffBtn) {
+      addTimeOffBtn.addEventListener("click", function () {
+        console.log("Main Add Time Off button clicked");
+        showAddTimeOffModal();
+      });
+    }
 
-    // STEP 3: Verify company data
-    if (!currentCompany || !currentCompany.id) {
-      console.error("ERROR: Missing company data", currentCompany);
-      const timeOffTableBody = document.getElementById("time-off-table-body");
-      timeOffTableBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="error-row">
-        <div class="error-state">
-          <i class="fas fa-exclamation-triangle"></i>
-          <p>Company data is missing or invalid</p>
-          <button onclick="location.reload()">Refresh Page</button>
-        </div>
-          </td>
-        </tr>
-      `;
+    // Add time off records to the table
+    const timeOffTableBody = document.getElementById("time-off-table-body");
+    if (!timeOffTableBody) {
+      console.error("Time off table body not found in DOM");
       return;
     }
 
-    // STEP 4: Query Firestore directly with extreme debugging
-    console.warn("QUERYING FIRESTORE TIME OFF COLLECTION");
-
-    // First get ALL records to verify collection exists and has data
-    const db = firebase.firestore();
-    const timeOffRef = db.collection("timeOff");
-
-    console.log("Checking for ANY time off records...");
-    const sampleCheck = await timeOffRef.limit(5).get();
-
-    console.log(`Found ${sampleCheck.size} records in timeOff collection`);
-    if (!sampleCheck.empty) {
-      sampleCheck.forEach((doc) => {
-        console.log("Sample record:", doc.id, JSON.stringify(doc.data()));
-      });
-    }
-
-    // STEP 5: Query for this specific company's records
-    console.log(`Querying specifically for company ID: "${currentCompany.id}"`);
-    const timeOffTableBody = document.getElementById("time-off-table-body");
-
-    try {
-      const companyRecords = await timeOffRef
-        .where("companyId", "==", currentCompany.id)
-        .orderBy("specificDay", "desc")
-        .get();
-
-      console.log(
-        `Found ${companyRecords.size} records for company ID ${currentCompany.id}`
-      );
-
-      // STEP 6: Handle empty results
-      if (companyRecords.empty) {
-        console.warn("No records found for this company");
-        timeOffTableBody.innerHTML = `
-          <tr>
-            <td colspan="6" class="empty-row">
-        <div class="empty-state">
-          <i class="fas fa-calendar-times"></i>
-          <p>No time off records found</p>
-        </div>
-            </td>
-          </tr>
-      `;
-        return;
-      }
-
-      // STEP 7: Process records one by one with careful error handling
-      console.log("Building time off display HTML...");
-      timeOffTableBody.innerHTML = ""; // Clear loading indicator
-
-      let recordCount = 0;
-
-      // Store records for potential filtering
-      window.allTimeOffRecords = [];
-
-      companyRecords.forEach((doc) => {
-        try {
-          recordCount++;
-          const timeOff = doc.data();
-          timeOff.id = doc.id; // Ensure ID is included
-
-          // Store for filtering
-          window.allTimeOffRecords.push(timeOff);
-
-          // Add to the table
-          addTimeOffToTable(timeOff);
-        } catch (recordError) {
-          console.error("Error processing record:", recordError);
-        }
+    if (!timeOffRecords.empty) {
+      timeOffRecords.forEach((doc) => {
+        const timeOff = doc.data();
+        addTimeOffToTable(timeOff);
       });
 
-      console.log(`Successfully added ${recordCount} records to the table`);
-
-      // Add event listeners to the buttons
+      // Add action listeners to the time off table rows
       addTimeOffActionListeners();
-    } catch (indexError) {
-      console.error("Index error in time off query:", indexError);
-
-      if (indexError.message && indexError.message.includes("index")) {
-        console.log("This is an index error. Attempting fallback query...");
-
-        try {
-          // Try a simpler query without the sorting (which doesn't require the index)
-          const fallbackRecords = await timeOffRef
-            .where("companyId", "==", currentCompany.id)
-            .get();
-
-          if (!fallbackRecords.empty) {
-            console.log(
-              `Fallback query successful! Found ${fallbackRecords.size} records`
-            );
-
-            // Sort the results in JavaScript instead of in the query
-            const timeOffItems = [];
-            fallbackRecords.forEach((doc) => {
-              timeOffItems.push({
-                id: doc.id,
-                ...doc.data(),
-              });
-            });
-
-            // Sort by specificDay in descending order
-            timeOffItems.sort((a, b) => {
-              const getDate = (item) => {
-                if (!item.specificDay) return new Date(0);
-                if (typeof item.specificDay.toDate === "function") {
-                  return item.specificDay.toDate();
-                }
-                return new Date(item.specificDay);
-              };
-
-              return getDate(b) - getDate(a); // descending order
-            });
-
-            // Clear loading indicator
-            timeOffTableBody.innerHTML = "";
-
-            // Add info banner about the index
-            const infoRow = document.createElement("tr");
-            infoRow.innerHTML = `
-              <td colspan="6" class="info-row">
-                <div class="info-banner">
-                  <p><i class="fas fa-info-circle"></i> Using limited functionality mode - some sorting may not work correctly</p>
-                  <p style="font-size: 0.9em;">To enable full functionality, <a href="https://console.firebase.google.com/v1/r/project/bookingbusticket-fa422/firestore/indexes?create_composite=ClZwcm9qZWN0cy9ib29raW5nYnVzdGlja2V0LWZhNDIyL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy90aW1lT2ZmL2luZGV4ZXMvXxABGg0KCWNvbXBhbnlJZBABGg8KC3NwZWNpZmljRGF5EAIaDAoIX19uYW1lX18QAg" target="_blank">create the required database index</a>.</p>
-                </div>
-              </td>
-            `;
-            timeOffTableBody.appendChild(infoRow);
-
-            // Store for filtering
-            window.allTimeOffRecords = timeOffItems;
-
-            // Add each record to the table
-            timeOffItems.forEach((timeOff) => {
-              addTimeOffToTable(timeOff);
-            });
-
-            // Add action button event listeners
-            addTimeOffActionListeners();
-
-            return; // Exit early since we've handled the data
-          } else {
-            console.log("Fallback query successful but no records found");
-            timeOffTableBody.innerHTML = `
-              <tr>
-                <td colspan="6" class="empty-row">
-                  <div class="empty-state">
-                    <i class="fas fa-calendar-times"></i>
-                    <p>No time off records found</p>
-                  </div>
-                </td>
-              </tr>
-            `;
-          }
-        } catch (fallbackError) {
-          console.error("Fallback query also failed:", fallbackError);
-          timeOffTableBody.innerHTML = `
-            <tr>
-              <td colspan="6" class="error-row">
-            <div class="error-state">
-              <i class="fas fa-exclamation-triangle"></i>
-                  <p>Failed to load time off records</p>
-                  <p>Error: ${fallbackError.message}</p>
-              <button onclick="loadTimeOffData()">Try Again</button>
-            </div>
-              </td>
-            </tr>
-          `;
-        }
-      } else {
-        // Handle other types of errors
-        timeOffTableBody.innerHTML = `
-          <tr>
-            <td colspan="6" class="error-row">
-              <div class="error-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Failed to load time off records</p>
-                <p>Error: ${indexError.message}</p>
-          <button onclick="loadTimeOffData()">Try Again</button>
-        </div>
-            </td>
-          </tr>
-      `;
-      }
     }
   } catch (error) {
-    console.error("CRITICAL ERROR in loadTimeOffData:", error);
-    const timeOffTableBody = document.getElementById("time-off-table-body");
-    if (timeOffTableBody) {
-      timeOffTableBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="error-row">
-          <div class="error-state">
-            <i class="fas fa-exclamation-triangle"></i>
-              <p>An unexpected error occurred while loading time off records</p>
-              <p>Error: ${error.message}</p>
-            <button onclick="loadTimeOffData()">Try Again</button>
-          </div>
-          </td>
-        </tr>
+    console.error("Error loading time off data:", error);
+
+    // Show error state in the DOM
+    const timeOffList = document.getElementById("time-off-list");
+    if (timeOffList) {
+      timeOffList.innerHTML = `
+        <div class="time-off-header">
+          <h3>Time Off Records</h3>
+          <button id="add-time-off-btn-main" class="add-btn primary-btn">
+            <i class="fas fa-plus"></i> Add Time Off
+          </button>
+        </div>
+        <div class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>Error loading time off data: ${error.message}</span>
+        </div>
       `;
+
+      // Setup the Add Time Off button even in error state
+      const addTimeOffBtn = document.getElementById("add-time-off-btn-main");
+      if (addTimeOffBtn) {
+        addTimeOffBtn.addEventListener("click", function () {
+          console.log("Main Add Time Off button clicked (error state)");
+          showAddTimeOffModal();
+        });
+      }
     }
   }
 }
@@ -957,7 +865,27 @@ function addTimeOffActionListeners() {
 // Show add time off modal
 function showAddTimeOffModal() {
   const today = new Date().toISOString().split("T")[0];
-  const currentTime = new Date().toTimeString().substring(0, 5); // Gets current time in HH:MM format
+
+  // Set default times (current hour rounded to nearest 5 minutes)
+  const now = new Date();
+  const defaultHour = now.getHours();
+  const defaultMinute = Math.ceil(now.getMinutes() / 5) * 5;
+
+  // Convert to 12-hour format
+  const defaultHour12 = defaultHour % 12 || 12;
+  const defaultPeriod = defaultHour < 12 ? "AM" : "PM";
+
+  // Format default time for display
+  const defaultTimeString = `${defaultHour12
+    .toString()
+    .padStart(2, "0")}:${defaultMinute
+    .toString()
+    .padStart(2, "0")} ${defaultPeriod}`;
+
+  console.log(
+    "Opening Add Time Off modal with default time:",
+    defaultTimeString
+  );
 
   const modalContent = `
     <div class="add-time-off-form">
@@ -995,25 +923,87 @@ function showAddTimeOffModal() {
       
       <div class="form-group">
         <label for="time-off-start-time">Start Time <span class="required">*</span></label>
-        <div class="time-input-wrapper time-with-format">
-          <input type="time" id="time-off-start-time" value="${currentTime}">
-          <span class="time-format">AM</span>
+        <div class="time-input-container">
+          <input type="text" id="time-off-start-time" class="time-input" placeholder="HH:MM AM/PM" value="${defaultTimeString}" required>
           <i class="far fa-clock time-icon"></i>
+          <div class="time-picker">
+            <select id="start-hour" class="hour-select">
+              ${Array.from({ length: 12 }, (_, i) => i + 1)
+                .map(
+                  (h) =>
+                    `<option value="${h}" ${
+                      h === defaultHour12 ? "selected" : ""
+                    }>${h.toString().padStart(2, "0")}</option>`
+                )
+                .join("")}
+            </select>
+            <span>:</span>
+            <select id="start-minute" class="minute-select">
+              ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                .map(
+                  (m) =>
+                    `<option value="${m}" ${
+                      m === defaultMinute % 60 ? "selected" : ""
+                    }>${m.toString().padStart(2, "0")}</option>`
+                )
+                .join("")}
+            </select>
+            <select id="start-period">
+              <option value="AM" ${
+                defaultPeriod === "AM" ? "selected" : ""
+              }>AM</option>
+              <option value="PM" ${
+                defaultPeriod === "PM" ? "selected" : ""
+              }>PM</option>
+            </select>
+            <button type="button" class="set-time-btn" data-target="time-off-start-time">Set</button>
+          </div>
         </div>
       </div>
       
       <div class="form-group">
         <label for="time-off-end-time">End Time <span class="required">*</span></label>
-        <div class="time-input-wrapper time-with-format">
-          <input type="time" id="time-off-end-time" value="${currentTime}">
-          <span class="time-format">AM</span>
+        <div class="time-input-container">
+          <input type="text" id="time-off-end-time" class="time-input" placeholder="HH:MM AM/PM" value="${defaultTimeString}" required>
           <i class="far fa-clock time-icon"></i>
+          <div class="time-picker">
+            <select id="end-hour" class="hour-select">
+              ${Array.from({ length: 12 }, (_, i) => i + 1)
+                .map(
+                  (h) =>
+                    `<option value="${h}" ${
+                      h === defaultHour12 ? "selected" : ""
+                    }>${h.toString().padStart(2, "0")}</option>`
+                )
+                .join("")}
+            </select>
+            <span>:</span>
+            <select id="end-minute" class="minute-select">
+              ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                .map(
+                  (m) =>
+                    `<option value="${m}" ${
+                      m === defaultMinute % 60 ? "selected" : ""
+                    }>${m.toString().padStart(2, "0")}</option>`
+                )
+                .join("")}
+            </select>
+            <select id="end-period">
+              <option value="AM" ${
+                defaultPeriod === "AM" ? "selected" : ""
+              }>AM</option>
+              <option value="PM" ${
+                defaultPeriod === "PM" ? "selected" : ""
+              }>PM</option>
+            </select>
+            <button type="button" class="set-time-btn" data-target="time-off-end-time">Set</button>
+          </div>
         </div>
       </div>
       
       <div class="form-actions">
-        <button class="cancel-modal-btn">Cancel</button>
-        <button class="primary-btn" id="add-time-off-btn"><i class="fas fa-plus"></i> Add Time Off</button>
+        <button type="button" class="cancel-modal-btn">Cancel</button>
+        <button type="button" class="primary-btn" id="add-time-off-btn"><i class="fas fa-plus"></i> Add Time Off</button>
       </div>
     </div>
   `;
@@ -1044,13 +1034,21 @@ function showAddTimeOffModal() {
   const frequencySelect = document.getElementById("time-off-frequency");
   frequencySelect.dispatchEvent(new Event("change"));
 
-  // Add event listener for add button
-  document
-    .getElementById("add-time-off-btn")
-    .addEventListener("click", function (e) {
-      e.preventDefault();
-      addTimeOff();
-    });
+  // Make sure the Add Time Off button exists before adding event listener
+  const addTimeOffBtn = document.getElementById("add-time-off-btn");
+  if (!addTimeOffBtn) {
+    console.error("Add Time Off button not found in the modal");
+    return;
+  }
+
+  console.log("Setting up event listener for Add Time Off button");
+
+  // Add event listener for add button with direct function reference
+  addTimeOffBtn.addEventListener("click", function (e) {
+    console.log("Add Time Off button clicked");
+    e.preventDefault();
+    addTimeOff();
+  });
 
   // Add event listener for cancel button
   document
@@ -1059,43 +1057,80 @@ function showAddTimeOffModal() {
       hideModal();
     });
 
-  // Add event listeners for time inputs to update AM/PM
-  const timeInputs = document.querySelectorAll('input[type="time"]');
-  timeInputs.forEach((input) => {
-    input.addEventListener("input", function () {
-      updateTimeFormat(this);
-    });
-    // Initialize time format
-    updateTimeFormat(input);
-  });
+  // Setup time picker functionality
+  setupTimePickersForTimeOff();
 }
 
 // Add time off record
 async function addTimeOff() {
+  console.log("addTimeOff function called");
+
+  // Show loading message and disable button first to prevent multiple submissions
+  const saveButton = document.getElementById("add-time-off-btn");
+  if (!saveButton) {
+    console.error("Save button not found - aborting addTimeOff");
+    return;
+  }
+
+  const originalButtonText = saveButton.innerHTML;
+  saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  saveButton.disabled = true;
+
   try {
+    // Check if database is initialized
+    if (!db) {
+      try {
+        db = firebase.firestore();
+        console.log("Initializing Firestore database reference in addTimeOff");
+      } catch (dbError) {
+        console.error("Failed to initialize Firestore:", dbError);
+        showMessage(
+          "Error connecting to database. Please refresh the page.",
+          "error"
+        );
+        resetButton();
+        return;
+      }
+    }
+
+    console.log("Getting form values...");
+
     // Get form values
-    const title = document.getElementById("time-off-reason").value.trim();
-    const frequency = document.getElementById("time-off-frequency").value;
-    const startTimeInput = document.getElementById("time-off-start-time").value;
-    const endTimeInput = document.getElementById("time-off-end-time").value;
+    const title =
+      document.getElementById("time-off-reason")?.value?.trim() || "";
+    const frequency =
+      document.getElementById("time-off-frequency")?.value || "";
+    const startTimeInput =
+      document.getElementById("time-off-start-time")?.value?.trim() || "";
+    const endTimeInput =
+      document.getElementById("time-off-end-time")?.value?.trim() || "";
+
+    console.log("Form values:", {
+      title,
+      frequency,
+      startTimeInput,
+      endTimeInput,
+    });
 
     // Get conditional fields based on frequency
     let specificDay = "";
     let dayOfWeek = "";
 
     if (frequency === "once") {
-      specificDay = document.getElementById("time-off-start").value;
+      specificDay = document.getElementById("time-off-start")?.value || "";
       if (!specificDay) {
         showMessage(
           "Please select a specific day for one-time time off",
           "error"
         );
+        resetButton();
         return;
       }
     } else if (frequency === "weekly") {
-      dayOfWeek = document.getElementById("time-off-day").value;
+      dayOfWeek = document.getElementById("time-off-day")?.value || "";
       if (!dayOfWeek) {
         showMessage("Please select a day of week for weekly time off", "error");
+        resetButton();
         return;
       }
       // Set a default date for the record (today's date)
@@ -1108,14 +1143,22 @@ async function addTimeOff() {
     // Validate required fields
     if (!title || !startTimeInput || !endTimeInput || !frequency) {
       showMessage("Please fill all required fields", "error");
+      resetButton();
       return;
     }
 
-    // Show loading message and disable button
-    const saveButton = document.getElementById("add-time-off-btn");
-    const originalButtonText = saveButton.innerHTML;
-    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    saveButton.disabled = true;
+    // Validate time formats
+    if (
+      !validateTimeOffInput(document.getElementById("time-off-start-time")) ||
+      !validateTimeOffInput(document.getElementById("time-off-end-time"))
+    ) {
+      showMessage(
+        "Please enter valid times in the format HH:MM AM/PM",
+        "error"
+      );
+      resetButton();
+      return;
+    }
 
     // Verify company data is available
     if (!currentCompany || !currentCompany.id) {
@@ -1127,17 +1170,64 @@ async function addTimeOff() {
         "Error: Company data is not available. Please refresh the page.",
         "error"
       );
-      saveButton.innerHTML = originalButtonText;
-      saveButton.disabled = false;
+      resetButton();
       return;
     }
+
+    console.log("Parsing time inputs...");
+
+    // Parse time inputs to get 24-hour format for storage
+    const parseTimeToObj = (timeString) => {
+      // Regular expression for HH:MM AM/PM format
+      const timeRegex = /^(0?[1-9]|1[0-2]):([0-5][0-9]) (AM|PM)$/i;
+      const matches = timeString.match(timeRegex);
+
+      if (!matches || matches.length !== 4) {
+        console.warn("Time string didn't match regex pattern:", timeString);
+        return null;
+      }
+
+      let hours = parseInt(matches[1], 10);
+      const minutes = parseInt(matches[2], 10);
+      const period = matches[3].toUpperCase();
+
+      // Convert to 24-hour format
+      if (period === "PM" && hours < 12) {
+        hours += 12;
+      } else if (period === "AM" && hours === 12) {
+        hours = 0;
+      }
+
+      return {
+        hour: hours,
+        minute: minutes,
+        displayFormat: timeString, // Store the original display format
+      };
+    };
+
+    // Parse the time inputs
+    const startTimeObj = parseTimeToObj(startTimeInput);
+    const endTimeObj = parseTimeToObj(endTimeInput);
+
+    if (!startTimeObj || !endTimeObj) {
+      showMessage(
+        "Invalid time format. Please use HH:MM AM/PM format.",
+        "error"
+      );
+      resetButton();
+      return;
+    }
+
+    console.log("Preparing time off data object...");
 
     // Create the time off data object matching the schema
     const timeOffData = {
       companyId: currentCompany.id,
       title: title,
-      startTime: startTimeInput,
-      endTime: endTimeInput,
+      startTime: startTimeInput, // Store the display format (12-hour)
+      startTimeObj: startTimeObj, // Store the time object for calculations
+      endTime: endTimeInput, // Store the display format (12-hour)
+      endTimeObj: endTimeObj, // Store the time object for calculations
       frequency: frequency, // "once", "weekly", or "daily"
       dayOfWeek: dayOfWeek, // Only used if frequency is weekly
       specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
@@ -1148,42 +1238,63 @@ async function addTimeOff() {
     console.log("Time off data to be saved:", JSON.stringify(timeOffData));
 
     // Add to Firestore
-    const db = firebase.firestore();
-    const docRef = await db.collection("timeOff").add(timeOffData);
-    console.log("Time off record added with ID:", docRef.id);
+    console.log("Adding to Firestore...");
 
-    // Add id field to the document
-    await db.collection("timeOff").doc(docRef.id).update({
-      id: docRef.id,
-    });
-    console.log("Added id field to time off record");
-
-    // Hide modal and reload time off data
-    hideModal();
-
-    // Give the database time to update before reloading
-    setTimeout(() => {
-      loadTimeOffData();
-    }, 500);
-
-    // Log activity
-    try {
-      await logActivity("create", "timeOff", currentCompany.id);
-    } catch (logError) {
-      console.error("Error logging activity:", logError);
-      // Continue since this is non-critical
+    // Ensure we have a valid Firestore instance
+    if (!db) {
+      console.error("Firestore database reference is invalid");
+      showMessage(
+        "Error accessing database. Please refresh the page.",
+        "error"
+      );
+      resetButton();
+      return;
     }
 
-    // Show success message
-    showMessage("Time off record added successfully", "success");
+    // Add the document with error handling
+    try {
+      const docRef = await db.collection("timeOff").add(timeOffData);
+      console.log("Time off record added with ID:", docRef.id);
+
+      // Add id field to the document
+      await db.collection("timeOff").doc(docRef.id).update({
+        id: docRef.id,
+      });
+      console.log("Added id field to time off record");
+
+      // Hide modal and reload time off data
+      hideModal();
+
+      // Give the database time to update before reloading
+      setTimeout(() => {
+        loadTimeOffData();
+      }, 500);
+
+      // Log activity
+      try {
+        await logActivity("create", "timeOff", currentCompany.id);
+      } catch (logError) {
+        console.error("Error logging activity:", logError);
+        // Continue since this is non-critical
+      }
+
+      // Show success message
+      showMessage("Time off record added successfully", "success");
+    } catch (firestoreError) {
+      console.error("Firestore error:", firestoreError);
+      showMessage(`Database error: ${firestoreError.message}`, "error");
+      resetButton();
+    }
   } catch (error) {
     console.error("Error adding time off record:", error);
     showMessage("Error adding time off record: " + error.message, "error");
+    resetButton();
+  }
 
-    // Reset button state
-    const saveButton = document.getElementById("add-time-off-btn");
+  // Helper function to reset the button state
+  function resetButton() {
     if (saveButton) {
-      saveButton.innerHTML = '<i class="fas fa-plus"></i> Add Time Off';
+      saveButton.innerHTML = originalButtonText;
       saveButton.disabled = false;
     }
   }
@@ -1226,6 +1337,78 @@ async function showEditTimeOffModal(timeOffId) {
     }
 
     const today = new Date().toISOString().split("T")[0];
+
+    // Format time values for display
+    const formatTimeForDisplay = (timeValue) => {
+      if (
+        typeof timeValue === "string" &&
+        (timeValue.includes("AM") || timeValue.includes("PM"))
+      ) {
+        return timeValue; // Already in 12-hour format
+      }
+
+      // Default time if none is provided
+      const defaultTime = "09:00 AM";
+
+      if (!timeValue) return defaultTime;
+
+      // If it's an object with hour and minute
+      if (
+        timeValue &&
+        typeof timeValue === "object" &&
+        "hour" in timeValue &&
+        "minute" in timeValue
+      ) {
+        const hour = parseInt(timeValue.hour, 10);
+        const minute = parseInt(timeValue.minute, 10);
+
+        if (isNaN(hour) || isNaN(minute)) return defaultTime;
+
+        const hour12 = hour % 12 || 12;
+        const period = hour < 12 ? "AM" : "PM";
+
+        return `${hour12.toString().padStart(2, "0")}:${minute
+          .toString()
+          .padStart(2, "0")} ${period}`;
+      }
+
+      return defaultTime;
+    };
+
+    // Get formatted time values
+    const startTimeDisplay = formatTimeForDisplay(
+      timeOff.startTime || timeOff.startTimeObj
+    );
+    const endTimeDisplay = formatTimeForDisplay(
+      timeOff.endTime || timeOff.endTimeObj
+    );
+
+    // Parse time for select values
+    const parseTimeForSelects = (timeString) => {
+      if (!timeString || !timeString.includes(" ")) {
+        return { hour12: 9, minute: 0, period: "AM" };
+      }
+
+      try {
+        const [timePart, period] = timeString.trim().split(" ");
+        const [hourStr, minuteStr] = timePart.split(":");
+
+        const hour12 = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
+
+        if (isNaN(hour12) || isNaN(minute)) {
+          return { hour12: 9, minute: 0, period: "AM" };
+        }
+
+        return { hour12, minute, period };
+      } catch (error) {
+        console.warn("Error parsing time string:", error);
+        return { hour12: 9, minute: 0, period: "AM" };
+      }
+    };
+
+    const startTimeParts = parseTimeForSelects(startTimeDisplay);
+    const endTimeParts = parseTimeForSelects(endTimeDisplay);
 
     const modalContent = `
       <div class="edit-time-off-form" data-id="${timeOffId}">
@@ -1289,23 +1472,81 @@ async function showEditTimeOffModal(timeOffId) {
         
         <div class="form-group">
           <label for="edit-time-off-start-time">Start Time <span class="required">*</span></label>
-          <div class="time-input-wrapper time-with-format">
-            <input type="time" id="edit-time-off-start-time" value="${
-              timeOff.startTime || ""
-            }">
-            <span class="time-format">AM</span>
+          <div class="time-input-container">
+            <input type="text" id="edit-time-off-start-time" class="time-input" placeholder="HH:MM AM/PM" value="${startTimeDisplay}" required>
             <i class="far fa-clock time-icon"></i>
+            <div class="time-picker">
+              <select id="edit-start-hour" class="hour-select">
+                ${Array.from({ length: 12 }, (_, i) => i + 1)
+                  .map(
+                    (h) =>
+                      `<option value="${h}" ${
+                        h === startTimeParts.hour12 ? "selected" : ""
+                      }>${h.toString().padStart(2, "0")}</option>`
+                  )
+                  .join("")}
+              </select>
+              <span>:</span>
+              <select id="edit-start-minute" class="minute-select">
+                ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                  .map(
+                    (m) =>
+                      `<option value="${m}" ${
+                        m === startTimeParts.minute ? "selected" : ""
+                      }>${m.toString().padStart(2, "0")}</option>`
+                  )
+                  .join("")}
+              </select>
+              <select id="edit-start-period">
+                <option value="AM" ${
+                  startTimeParts.period === "AM" ? "selected" : ""
+                }>AM</option>
+                <option value="PM" ${
+                  startTimeParts.period === "PM" ? "selected" : ""
+                }>PM</option>
+              </select>
+              <button type="button" class="set-time-btn" data-target="edit-time-off-start-time">Set</button>
+            </div>
           </div>
         </div>
         
         <div class="form-group">
           <label for="edit-time-off-end-time">End Time <span class="required">*</span></label>
-          <div class="time-input-wrapper time-with-format">
-            <input type="time" id="edit-time-off-end-time" value="${
-              timeOff.endTime || ""
-            }">
-            <span class="time-format">AM</span>
+          <div class="time-input-container">
+            <input type="text" id="edit-time-off-end-time" class="time-input" placeholder="HH:MM AM/PM" value="${endTimeDisplay}" required>
             <i class="far fa-clock time-icon"></i>
+            <div class="time-picker">
+              <select id="edit-end-hour" class="hour-select">
+                ${Array.from({ length: 12 }, (_, i) => i + 1)
+                  .map(
+                    (h) =>
+                      `<option value="${h}" ${
+                        h === endTimeParts.hour12 ? "selected" : ""
+                      }>${h.toString().padStart(2, "0")}</option>`
+                  )
+                  .join("")}
+              </select>
+              <span>:</span>
+              <select id="edit-end-minute" class="minute-select">
+                ${Array.from({ length: 60 / 5 }, (_, i) => i * 5)
+                  .map(
+                    (m) =>
+                      `<option value="${m}" ${
+                        m === endTimeParts.minute ? "selected" : ""
+                      }>${m.toString().padStart(2, "0")}</option>`
+                  )
+                  .join("")}
+              </select>
+              <select id="edit-end-period">
+                <option value="AM" ${
+                  endTimeParts.period === "AM" ? "selected" : ""
+                }>AM</option>
+                <option value="PM" ${
+                  endTimeParts.period === "PM" ? "selected" : ""
+                }>PM</option>
+              </select>
+              <button type="button" class="set-time-btn" data-target="edit-time-off-end-time">Set</button>
+            </div>
           </div>
         </div>
         
@@ -1340,15 +1581,8 @@ async function showEditTimeOffModal(timeOffId) {
         // For daily, both remain hidden
       });
 
-    // Add event listeners for time inputs
-    const timeInputs = document.querySelectorAll('input[type="time"]');
-    timeInputs.forEach((input) => {
-      input.addEventListener("input", function () {
-        updateTimeFormat(this);
-      });
-      // Initialize time format
-      updateTimeFormat(input);
-    });
+    // Setup time picker functionality
+    setupTimePickersForTimeOff();
 
     // Add event listener for update button
     document
@@ -1368,8 +1602,12 @@ async function updateTimeOff() {
     // Get form values
     const title = document.getElementById("edit-time-off-reason").value.trim();
     const frequency = document.getElementById("edit-time-off-frequency").value;
-    const startTime = document.getElementById("edit-time-off-start-time").value;
-    const endTime = document.getElementById("edit-time-off-end-time").value;
+    const startTimeInput = document
+      .getElementById("edit-time-off-start-time")
+      .value.trim();
+    const endTimeInput = document
+      .getElementById("edit-time-off-end-time")
+      .value.trim();
 
     // Get conditional fields based on frequency
     let specificDay = "";
@@ -1398,8 +1636,22 @@ async function updateTimeOff() {
     }
 
     // Validate required fields
-    if (!title || !startTime || !endTime || !frequency) {
+    if (!title || !startTimeInput || !endTimeInput || !frequency) {
       showMessage("Please fill all required fields", "error");
+      return;
+    }
+
+    // Validate time formats
+    if (
+      !validateTimeOffInput(
+        document.getElementById("edit-time-off-start-time")
+      ) ||
+      !validateTimeOffInput(document.getElementById("edit-time-off-end-time"))
+    ) {
+      showMessage(
+        "Please enter valid times in the format HH:MM AM/PM",
+        "error"
+      );
       return;
     }
 
@@ -1409,11 +1661,55 @@ async function updateTimeOff() {
     updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     updateBtn.disabled = true;
 
+    // Parse time inputs to get 24-hour format for storage
+    const parseTimeToObj = (timeString) => {
+      // Regular expression for HH:MM AM/PM format
+      const timeRegex = /^(0?[1-9]|1[0-2]):([0-5][0-9]) (AM|PM)$/i;
+      const matches = timeString.match(timeRegex);
+
+      if (!matches || matches.length !== 4) {
+        return null;
+      }
+
+      let hours = parseInt(matches[1], 10);
+      const minutes = parseInt(matches[2], 10);
+      const period = matches[3].toUpperCase();
+
+      // Convert to 24-hour format
+      if (period === "PM" && hours < 12) {
+        hours += 12;
+      } else if (period === "AM" && hours === 12) {
+        hours = 0;
+      }
+
+      return {
+        hour: hours,
+        minute: minutes,
+        displayFormat: timeString, // Store the original display format
+      };
+    };
+
+    // Parse the time inputs
+    const startTimeObj = parseTimeToObj(startTimeInput);
+    const endTimeObj = parseTimeToObj(endTimeInput);
+
+    if (!startTimeObj || !endTimeObj) {
+      showMessage(
+        "Invalid time format. Please use HH:MM AM/PM format.",
+        "error"
+      );
+      updateBtn.innerHTML = originalBtnText;
+      updateBtn.disabled = false;
+      return;
+    }
+
     // Update document in Firestore
     const timeOffData = {
       title: title,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: startTimeInput, // Store the display format (12-hour)
+      startTimeObj: startTimeObj, // Store the time object for calculations
+      endTime: endTimeInput, // Store the display format (12-hour)
+      endTimeObj: endTimeObj, // Store the time object for calculations
       frequency: frequency,
       dayOfWeek: dayOfWeek,
       specificDay: firebase.firestore.Timestamp.fromDate(new Date(specificDay)),
@@ -1496,5 +1792,156 @@ async function deleteTimeOff(timeOffId) {
   } catch (error) {
     console.error("Error deleting time off:", error);
     showMessage(`Error deleting time off: ${error.message}`, "error");
+  }
+}
+
+// Function to set up time pickers for time off
+function setupTimePickersForTimeOff() {
+  // Focus event listeners for time inputs
+  document.querySelectorAll(".time-input").forEach((input) => {
+    // Allow direct manual entry with validation
+    input.addEventListener("input", function (e) {
+      validateTimeOffInput(this);
+    });
+
+    // Show time picker when input is focused
+    input.addEventListener("focus", function () {
+      // Close any other open time pickers first
+      document.querySelectorAll(".time-picker").forEach((p) => {
+        if (p !== this.nextElementSibling) {
+          p.classList.remove("active");
+        }
+      });
+
+      const picker = this.nextElementSibling;
+      if (picker) {
+        picker.style.display = "flex";
+        picker.classList.add("active");
+
+        // Parse the current value and update selects if it's valid
+        if (this.value) {
+          updateTimeOffSelectsFromInput(this);
+        }
+      }
+    });
+
+    input.addEventListener("blur", function (e) {
+      // Delay hiding to allow clicking on time picker elements
+      setTimeout(() => {
+        const picker = this.nextElementSibling;
+        if (
+          picker &&
+          !picker.contains(document.activeElement) &&
+          document.activeElement !== this
+        ) {
+          picker.style.display = "none";
+          picker.classList.remove("active");
+        }
+      }, 200);
+    });
+  });
+
+  // Set time buttons
+  document.querySelectorAll(".set-time-btn").forEach((btn) => {
+    btn.addEventListener("click", function () {
+      const targetInputId = this.getAttribute("data-target");
+      const targetInput = document.getElementById(targetInputId);
+      if (!targetInput) return;
+
+      // Determine prefixes for select elements
+      const prefix = targetInputId.includes("start") ? "start" : "end";
+
+      // Build the select IDs
+      const hourSelectId = `${prefix}-hour`;
+      const minuteSelectId = `${prefix}-minute`;
+      const periodSelectId = `${prefix}-period`;
+
+      // Get values from selects with additional validation
+      let hour = document.getElementById(hourSelectId)?.value || "12";
+      let minute = document.getElementById(minuteSelectId)?.value || "00";
+      let period = document.getElementById(periodSelectId)?.value || "AM";
+
+      // Ensure values are properly formatted
+      hour = parseInt(hour, 10);
+      if (isNaN(hour) || hour < 1 || hour > 12) hour = 12;
+      hour = hour.toString().padStart(2, "0");
+
+      minute = parseInt(minute, 10);
+      if (isNaN(minute) || minute < 0 || minute > 59) minute = 0;
+      minute = minute.toString().padStart(2, "0");
+
+      if (period !== "AM" && period !== "PM") period = "AM";
+
+      // Set the formatted time value
+      const formattedTime = `${hour}:${minute} ${period}`;
+      targetInput.value = formattedTime;
+      targetInput.classList.remove("invalid-input");
+      targetInput.classList.add("valid-input");
+
+      // Hide the picker
+      this.parentElement.style.display = "none";
+      this.parentElement.classList.remove("active");
+
+      // Fire change event so other listeners can react
+      const changeEvent = new Event("change", { bubbles: true });
+      targetInput.dispatchEvent(changeEvent);
+
+      // Also trigger input event for validation
+      const inputEvent = new Event("input", { bubbles: true });
+      targetInput.dispatchEvent(inputEvent);
+    });
+  });
+}
+
+// Validate a time input field for time off
+function validateTimeOffInput(inputElement) {
+  const value = inputElement.value.trim();
+
+  // Regular expression for HH:MM AM/PM format
+  const timeRegex = /^(0?[1-9]|1[0-2]):([0-5][0-9]) (AM|PM)$/i;
+
+  if (value === "" || timeRegex.test(value)) {
+    // Valid format
+    inputElement.classList.remove("invalid-input");
+    inputElement.classList.add("valid-input");
+    return true;
+  } else {
+    // Invalid format
+    inputElement.classList.remove("valid-input");
+    inputElement.classList.add("invalid-input");
+    return false;
+  }
+}
+
+// Update select elements based on the input value for time off
+function updateTimeOffSelectsFromInput(inputElement) {
+  const value = inputElement.value.trim();
+  const timeRegex = /^(0?[1-9]|1[0-2]):([0-5][0-9]) (AM|PM)$/i;
+
+  if (!timeRegex.test(value)) return;
+
+  const matches = value.match(timeRegex);
+  if (matches && matches.length === 4) {
+    const hour = parseInt(matches[1], 10);
+    const minute = parseInt(matches[2], 10);
+    const period = matches[3].toUpperCase();
+
+    const targetId = inputElement.id;
+    const prefix = targetId.includes("start") ? "start" : "end";
+
+    // Update selects
+    const hourSelect = document.getElementById(`${prefix}-hour`);
+    const minuteSelect = document.getElementById(`${prefix}-minute`);
+    const periodSelect = document.getElementById(`${prefix}-period`);
+
+    if (hourSelect) hourSelect.value = hour;
+
+    // Find closest 5-minute interval for the minute select
+    if (minuteSelect) {
+      const closestMinute = Math.round(minute / 5) * 5;
+      minuteSelect.value = closestMinute >= 60 ? 55 : closestMinute;
+    }
+
+    if (periodSelect) periodSelect.value = period;
   }
 }

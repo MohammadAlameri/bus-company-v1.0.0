@@ -20,10 +20,13 @@ function formatTime(timeObj) {
           return formatTimeFor12Hour(`${hours}:${minutes}`);
         }
       }
+
+      // If we couldn't parse it, return the string
+      return timeObj;
     }
 
     // If timeObj has a displayFormat property, use that
-    if (timeObj.displayFormat) {
+    if (timeObj && timeObj.displayFormat) {
       return timeObj.displayFormat;
     }
 
@@ -51,10 +54,22 @@ function formatTime(timeObj) {
       )} ${period}`;
     }
 
-    console.warn("Unrecognized time format:", timeObj);
-    return "N/A";
+    // If we've reached here, try to stringify the object for debugging
+    try {
+      return typeof timeObj === "object"
+        ? JSON.stringify(timeObj)
+        : String(timeObj);
+    } catch (e) {
+      console.warn("Unrecognized time format and couldn't stringify:", timeObj);
+      return "N/A";
+    }
   } catch (error) {
-    console.warn("Error formatting time:", error);
+    console.warn(
+      "Error formatting time:",
+      error,
+      "Original timeObj:",
+      typeof timeObj
+    );
     return "N/A";
   }
 }
@@ -291,20 +306,28 @@ function addTripToTable(trip) {
     }
   }
 
-  // Safely get departure time
+  // Safely get departure time with fallbacks
   let departureTime = "N/A";
-  if (typeof trip.departureTime === "string" && trip.departureTime.trim()) {
-    departureTime = trip.departureTime;
-  } else if (trip.departureTimeObj) {
-    departureTime = formatTime(trip.departureTimeObj);
+  try {
+    if (typeof trip.departureTime === "string" && trip.departureTime.trim()) {
+      departureTime = trip.departureTime;
+    } else if (trip.departureTimeObj) {
+      departureTime = formatTime(trip.departureTimeObj);
+    }
+  } catch (error) {
+    console.warn("Error formatting departure time:", error);
   }
 
-  // Safely get arrival time
+  // Safely get arrival time with fallbacks
   let arrivalTime = "N/A";
-  if (typeof trip.arrivalTime === "string" && trip.arrivalTime.trim()) {
-    arrivalTime = trip.arrivalTime;
-  } else if (trip.arrivalTimeObj) {
-    arrivalTime = formatTime(trip.arrivalTimeObj);
+  try {
+    if (typeof trip.arrivalTime === "string" && trip.arrivalTime.trim()) {
+      arrivalTime = trip.arrivalTime;
+    } else if (trip.arrivalTimeObj) {
+      arrivalTime = formatTime(trip.arrivalTimeObj);
+    }
+  } catch (error) {
+    console.warn("Error formatting arrival time:", error);
   }
 
   // Format waiting time
@@ -732,46 +755,72 @@ function setupTimePickers() {
       // Delay hiding to allow clicking on time picker elements
       setTimeout(() => {
         const picker = this.nextElementSibling;
-        if (picker && !picker.contains(document.activeElement)) {
+        if (
+          picker &&
+          !picker.contains(document.activeElement) &&
+          document.activeElement !== this
+        ) {
           picker.style.display = "none";
           picker.classList.remove("active");
         }
-      }, 150);
+      }, 200);
     });
   });
 
-  // Set time button click handlers
+  // Set time buttons
   document.querySelectorAll(".set-time-btn").forEach((btn) => {
     btn.addEventListener("click", function () {
-      const targetId = this.dataset.target;
-      const targetInput = document.getElementById(targetId);
-      const prefix = targetId.includes("edit")
-        ? targetId.split("-")[2] // For edit form (edit-trip-departure)
-        : targetId.split("-")[1]; // For add form (trip-departure)
+      const targetInputId = this.getAttribute("data-target");
+      const targetInput = document.getElementById(targetInputId);
+      if (!targetInput) return;
 
-      let hourSelectId = `${prefix}-hour`;
-      let minuteSelectId = `${prefix}-minute`;
-      let periodSelectId = `${prefix}-period`;
+      // Determine prefixes for select elements
+      const prefix = targetInputId.includes("edit")
+        ? targetInputId.includes("departure")
+          ? "edit-departure"
+          : "edit-arrival"
+        : targetInputId.includes("departure")
+        ? "departure"
+        : "arrival";
 
-      // Handle edit form selectors which have different naming
-      if (targetId.includes("edit")) {
-        hourSelectId = `edit-${prefix}-hour`;
-        minuteSelectId = `edit-${prefix}-minute`;
-        periodSelectId = `edit-${prefix}-period`;
-      }
+      // Build the select IDs
+      const hourSelectId = `${prefix}-hour`;
+      const minuteSelectId = `${prefix}-minute`;
+      const periodSelectId = `${prefix}-period`;
 
-      const hour = document.getElementById(hourSelectId).value;
-      const minute = document.getElementById(minuteSelectId).value;
-      const period = document.getElementById(periodSelectId).value;
+      // Get values from selects with additional validation
+      let hour = document.getElementById(hourSelectId)?.value || "12";
+      let minute = document.getElementById(minuteSelectId)?.value || "00";
+      let period = document.getElementById(periodSelectId)?.value || "AM";
 
-      targetInput.value = `${hour.toString().padStart(2, "0")}:${minute
-        .toString()
-        .padStart(2, "0")} ${period}`;
+      // Ensure values are properly formatted
+      hour = parseInt(hour, 10);
+      if (isNaN(hour) || hour < 1 || hour > 12) hour = 12;
+      hour = hour.toString().padStart(2, "0");
+
+      minute = parseInt(minute, 10);
+      if (isNaN(minute) || minute < 0 || minute > 59) minute = 0;
+      minute = minute.toString().padStart(2, "0");
+
+      if (period !== "AM" && period !== "PM") period = "AM";
+
+      // Set the formatted time value
+      const formattedTime = `${hour}:${minute} ${period}`;
+      targetInput.value = formattedTime;
+      targetInput.classList.remove("invalid-input");
+      targetInput.classList.add("valid-input");
+
+      // Hide the picker
       this.parentElement.style.display = "none";
       this.parentElement.classList.remove("active");
 
-      // Trigger validation
-      validateTimeInput(targetInput);
+      // Fire change event so other listeners can react
+      const changeEvent = new Event("change", { bubbles: true });
+      targetInput.dispatchEvent(changeEvent);
+
+      // Also trigger input event for validation
+      const inputEvent = new Event("input", { bubbles: true });
+      targetInput.dispatchEvent(inputEvent);
     });
   });
 }
@@ -1285,70 +1334,124 @@ function formatTimeFor12Hour(timeString) {
 
 // Convert from 12-hour to 24-hour format for HTML time input
 function formatTimeFor24Hour(timeString) {
-  if (!timeString || !timeString.includes(" ")) return timeString;
-
-  const [timePart, period] = timeString.split(" ");
-  const [hours, minutes] = timePart.split(":").map(Number);
-
-  // Convert to 24-hour
-  let hour24 = hours;
-  if (period === "PM" && hours < 12) {
-    hour24 = hours + 12;
-  } else if (period === "AM" && hours === 12) {
-    hour24 = 0;
+  // Handle null, undefined, or invalid inputs
+  if (
+    !timeString ||
+    typeof timeString !== "string" ||
+    !timeString.includes(" ")
+  ) {
+    console.warn(
+      "Invalid time string format for 24-hour conversion:",
+      timeString
+    );
+    return "00:00"; // Return default value instead of undefined
   }
 
-  return `${hour24.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}`;
+  try {
+    const parts = timeString.trim().split(" ");
+    if (parts.length !== 2) {
+      console.warn("Invalid time format (missing AM/PM):", timeString);
+      return "00:00";
+    }
+
+    const [timePart, period] = parts;
+    if (!timePart || !period) {
+      console.warn("Invalid time parts:", timeString);
+      return "00:00";
+    }
+
+    const timeSections = timePart.split(":");
+    if (timeSections.length !== 2) {
+      console.warn("Invalid time format (missing `:`):", timeString);
+      return "00:00";
+    }
+
+    const hours = parseInt(timeSections[0], 10);
+    const minutes = parseInt(timeSections[1], 10);
+
+    if (isNaN(hours) || isNaN(minutes)) {
+      console.warn("Invalid time values:", timeString);
+      return "00:00";
+    }
+
+    // Convert to 24-hour
+    let hour24 = hours;
+    if (period.toUpperCase() === "PM" && hours < 12) {
+      hour24 = hours + 12;
+    } else if (period.toUpperCase() === "AM" && hours === 12) {
+      hour24 = 0;
+    }
+
+    return `${hour24.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  } catch (error) {
+    console.error(
+      "Error converting time to 24-hour format:",
+      error,
+      timeString
+    );
+    return "00:00"; // Return default value instead of undefined
+  }
 }
 
 // Handle add trip form submission
 async function handleAddTrip(e) {
   e.preventDefault();
 
-  const vehicleInput = document.getElementById("trip-vehicle");
-  const fromInput = document.getElementById("trip-from");
-  const toInput = document.getElementById("trip-to");
-  const dateInput = document.getElementById("trip-date");
-  const departureInput = document.getElementById("trip-departure");
-  const arrivalInput = document.getElementById("trip-arrival");
-  const waitingInput = document.getElementById("trip-waiting");
-  const routeTypeInput = document.getElementById("trip-route-type");
-  const priceInput = document.getElementById("trip-price");
-  const currencyInput = document.getElementById("trip-currency");
-
-  // Check required fields existence
-  if (
-    !vehicleInput ||
-    !fromInput ||
-    !toInput ||
-    !dateInput ||
-    !departureInput ||
-    !arrivalInput ||
-    !routeTypeInput ||
-    !priceInput ||
-    !currencyInput
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
-  }
-
-  // Check required fields have values
-  if (
-    !vehicleInput.value ||
-    !fromInput.value ||
-    !toInput.value ||
-    !dateInput.value ||
-    !departureInput.value ||
-    !arrivalInput.value ||
-    !priceInput.value
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
+  // Show processing state
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton ? submitButton.innerHTML : "";
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Processing...';
   }
 
   try {
+    const vehicleInput = document.getElementById("trip-vehicle");
+    const fromInput = document.getElementById("trip-from");
+    const toInput = document.getElementById("trip-to");
+    const dateInput = document.getElementById("trip-date");
+    const departureInput = document.getElementById("trip-departure");
+    const arrivalInput = document.getElementById("trip-arrival");
+    const waitingInput = document.getElementById("trip-waiting");
+    const routeTypeInput = document.getElementById("trip-route-type");
+    const priceInput = document.getElementById("trip-price");
+    const currencyInput = document.getElementById("trip-currency");
+
+    // Check required fields existence
+    if (
+      !vehicleInput ||
+      !fromInput ||
+      !toInput ||
+      !dateInput ||
+      !departureInput ||
+      !arrivalInput ||
+      !routeTypeInput ||
+      !priceInput ||
+      !currencyInput
+    ) {
+      showMessage("Please fill in all required fields", "error");
+      resetButton();
+      return;
+    }
+
+    // Check required fields have values
+    if (
+      !vehicleInput.value ||
+      !fromInput.value ||
+      !toInput.value ||
+      !dateInput.value ||
+      !departureInput.value ||
+      !arrivalInput.value ||
+      !priceInput.value
+    ) {
+      showMessage("Please fill in all required fields", "error");
+      resetButton();
+      return;
+    }
+
     // Validate time formats first
     if (
       !validateTimeInput(departureInput) ||
@@ -1358,6 +1461,7 @@ async function handleAddTrip(e) {
         "Please enter valid times in the format HH:MM AM/PM",
         "error"
       );
+      resetButton();
       return;
     }
 
@@ -1366,20 +1470,41 @@ async function handleAddTrip(e) {
     const waitingHours = Math.floor(waitingMinutes / 60);
     const remainingMinutes = waitingMinutes % 60;
 
-    // Parse the departure and arrival times
+    // Parse the departure and arrival times with safer validation
     const departureTime12h = departureInput.value.trim();
     const arrivalTime12h = arrivalInput.value.trim();
 
-    // Parse to time objects for validation
+    // Parse to time objects for validation with additional safeguards
     const departureTimeObj = parseTimeInput(departureTime12h);
     const arrivalTimeObj = parseTimeInput(arrivalTime12h);
 
-    // Validate the time inputs
-    if (!departureTimeObj || !arrivalTimeObj) {
+    // Validate the time objects more thoroughly
+    if (
+      !departureTimeObj ||
+      typeof departureTimeObj !== "object" ||
+      !arrivalTimeObj ||
+      typeof arrivalTimeObj !== "object"
+    ) {
       showMessage(
         "Please enter valid times in the format HH:MM AM/PM",
         "error"
       );
+      resetButton();
+      return;
+    }
+
+    // Extra validation for departureTimeObj and arrivalTimeObj properties
+    if (
+      departureTimeObj.hour === undefined ||
+      departureTimeObj.minute === undefined ||
+      arrivalTimeObj.hour === undefined ||
+      arrivalTimeObj.minute === undefined
+    ) {
+      showMessage(
+        "Error with time format. Please enter times like '09:30 AM'",
+        "error"
+      );
+      resetButton();
       return;
     }
 
@@ -1389,24 +1514,28 @@ async function handleAddTrip(e) {
       tripDate = new Date(dateInput.value);
       if (isNaN(tripDate.getTime())) {
         showMessage("Please enter a valid date", "error");
+        resetButton();
         return;
       }
     } catch (error) {
       console.error("Error parsing date:", error);
       showMessage("Please enter a valid date", "error");
+      resetButton();
       return;
     }
 
-    // Create trip
+    // Create trip with validated data
     const tripData = {
       vehicleId: vehicleInput.value,
       fromCity: fromInput.value,
       toCity: toInput.value,
       date: tripDate,
 
-      // Store the time in 12-hour format (HH:MM aa)
+      // Store both the display string and the time object for redundancy
       departureTime: departureTime12h,
+      departureTimeObj: departureTimeObj,
       arrivalTime: arrivalTime12h,
+      arrivalTimeObj: arrivalTimeObj,
 
       waitingTime: {
         hour: waitingHours,
@@ -1422,9 +1551,12 @@ async function handleAddTrip(e) {
     // Add validation for important fields
     if (!tripData.vehicleId || !tripData.fromCity || !tripData.toCity) {
       showMessage("Missing required trip information", "error");
+      resetButton();
       return;
     }
 
+    // Add to Firestore with error handling
+    console.log("Adding trip data:", JSON.stringify(tripData));
     const newTripRef = await tripsRef.add(tripData);
 
     // Add the id field to the trip document
@@ -1433,7 +1565,12 @@ async function handleAddTrip(e) {
     });
 
     // Log activity
-    await logActivity("create", "trip", newTripRef.id);
+    try {
+      await logActivity("create", "trip", newTripRef.id);
+    } catch (logError) {
+      console.error("Error logging activity (non-critical):", logError);
+      // Continue since this is non-critical
+    }
 
     showMessage("Trip added successfully", "success");
     hideModal();
@@ -1443,6 +1580,15 @@ async function handleAddTrip(e) {
   } catch (error) {
     console.error("Error adding trip:", error);
     showMessage("Error adding trip: " + error.message, "error");
+    resetButton();
+  }
+
+  // Helper function to reset button state
+  function resetButton() {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonText || "Add Trip";
+    }
   }
 }
 
@@ -1450,71 +1596,99 @@ async function handleAddTrip(e) {
 async function handleEditTrip(e) {
   e.preventDefault();
 
-  const tripId = document.getElementById("edit-trip-id").value;
-  const vehicleInput = document.getElementById("edit-trip-vehicle");
-  const fromInput = document.getElementById("edit-trip-from");
-  const toInput = document.getElementById("edit-trip-to");
-  const dateInput = document.getElementById("edit-trip-date");
-  const departureInput = document.getElementById("edit-trip-departure");
-  const arrivalInput = document.getElementById("edit-trip-arrival");
-  const waitingInput = document.getElementById("edit-trip-waiting");
-  const routeTypeInput = document.getElementById("edit-trip-route-type");
-  const priceInput = document.getElementById("edit-trip-price");
-  const currencyInput = document.getElementById("edit-trip-currency");
-
-  // Check required fields existence
-  if (
-    !tripId ||
-    !vehicleInput ||
-    !fromInput ||
-    !toInput ||
-    !dateInput ||
-    !departureInput ||
-    !arrivalInput ||
-    !routeTypeInput ||
-    !priceInput ||
-    !currencyInput
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
-  }
-
-  // Check required fields have values
-  if (
-    !vehicleInput.value ||
-    !fromInput.value ||
-    !toInput.value ||
-    !dateInput.value ||
-    !departureInput.value ||
-    !arrivalInput.value ||
-    !priceInput.value
-  ) {
-    showMessage("Please fill in all required fields", "error");
-    return;
+  // Show processing state
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton ? submitButton.innerHTML : "";
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Updating...';
   }
 
   try {
+    const tripId = document.getElementById("edit-trip-id").value;
+    const vehicleInput = document.getElementById("edit-trip-vehicle");
+    const fromInput = document.getElementById("edit-trip-from");
+    const toInput = document.getElementById("edit-trip-to");
+    const dateInput = document.getElementById("edit-trip-date");
+    const departureInput = document.getElementById("edit-trip-departure");
+    const arrivalInput = document.getElementById("edit-trip-arrival");
+    const waitingInput = document.getElementById("edit-trip-waiting");
+    const routeTypeInput = document.getElementById("edit-trip-route-type");
+    const priceInput = document.getElementById("edit-trip-price");
+    const currencyInput = document.getElementById("edit-trip-currency");
+
+    // Check required fields
+    if (
+      !tripId ||
+      !vehicleInput.value ||
+      !fromInput.value ||
+      !toInput.value ||
+      !dateInput.value ||
+      !departureInput.value ||
+      !arrivalInput.value ||
+      !priceInput.value
+    ) {
+      showMessage("Please fill in all required fields", "error");
+      resetButton();
+      return;
+    }
+
+    // Validate time formats
+    if (
+      !validateTimeInput(departureInput) ||
+      !validateTimeInput(arrivalInput)
+    ) {
+      showMessage(
+        "Please enter valid times in the format HH:MM AM/PM",
+        "error"
+      );
+      resetButton();
+      return;
+    }
+
     // Convert waiting time minutes to TimeOfDay
     const waitingMinutes = parseInt(waitingInput.value) || 0;
     const waitingHours = Math.floor(waitingMinutes / 60);
     const remainingMinutes = waitingMinutes % 60;
 
-    // Parse the departure and arrival times
-    const departureTimeObj = parseTimeInput(departureInput.value);
-    const arrivalTimeObj = parseTimeInput(arrivalInput.value);
+    // Parse the departure and arrival times with safer validation
+    const departureTime12h = departureInput.value.trim();
+    const arrivalTime12h = arrivalInput.value.trim();
 
-    // Validate the time inputs
-    if (!departureTimeObj || !arrivalTimeObj) {
+    // Parse to time objects for validation with additional safeguards
+    const departureTimeObj = parseTimeInput(departureTime12h);
+    const arrivalTimeObj = parseTimeInput(arrivalTime12h);
+
+    // Validate the time objects more thoroughly
+    if (
+      !departureTimeObj ||
+      typeof departureTimeObj !== "object" ||
+      !arrivalTimeObj ||
+      typeof arrivalTimeObj !== "object"
+    ) {
       showMessage(
         "Please enter valid times in the format HH:MM AM/PM",
         "error"
       );
+      resetButton();
       return;
     }
 
-    // Store the 12-hour format times directly
-    const departureTime12h = departureInput.value.trim();
-    const arrivalTime12h = arrivalInput.value.trim();
+    // Extra validation for departureTimeObj and arrivalTimeObj properties
+    if (
+      departureTimeObj.hour === undefined ||
+      departureTimeObj.minute === undefined ||
+      arrivalTimeObj.hour === undefined ||
+      arrivalTimeObj.minute === undefined
+    ) {
+      showMessage(
+        "Error with time format. Please enter times like '09:30 AM'",
+        "error"
+      );
+      resetButton();
+      return;
+    }
 
     // Validate date input
     let tripDate;
@@ -1522,35 +1696,42 @@ async function handleEditTrip(e) {
       tripDate = new Date(dateInput.value);
       if (isNaN(tripDate.getTime())) {
         showMessage("Please enter a valid date", "error");
+        resetButton();
         return;
       }
     } catch (error) {
       console.error("Error parsing date:", error);
       showMessage("Please enter a valid date", "error");
+      resetButton();
       return;
     }
 
-    // Create updated trip data
+    // Create trip update data with validated values
     const tripData = {
       vehicleId: vehicleInput.value,
       fromCity: fromInput.value,
       toCity: toInput.value,
       date: tripDate,
 
-      // Store the time in 12-hour format (HH:MM aa)
+      // Store both the string and object for redundancy
       departureTime: departureTime12h,
+      departureTimeObj: departureTimeObj,
       arrivalTime: arrivalTime12h,
+      arrivalTimeObj: arrivalTimeObj,
 
       waitingTime: {
         hour: waitingHours,
         minute: remainingMinutes,
       },
-      routeType: routeTypeInput.value, // Direct or Multiple Stops
+      routeType: routeTypeInput.value,
       price: parseFloat(priceInput.value) || 0,
-      currency: currencyInput.value, // YER, SAR, USD
+      currency: currencyInput.value,
+      updatedAt: getTimestamp(),
     };
 
-    // Update trip
+    console.log("Updating trip with data:", JSON.stringify(tripData));
+
+    // Update in Firestore
     await tripsRef.doc(tripId).update(tripData);
 
     // Log activity
@@ -1564,6 +1745,15 @@ async function handleEditTrip(e) {
   } catch (error) {
     console.error("Error updating trip:", error);
     showMessage("Error updating trip: " + error.message, "error");
+    resetButton();
+  }
+
+  // Helper function to reset button state
+  function resetButton() {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonText || "Update Trip";
+    }
   }
 }
 
